@@ -1,0 +1,35 @@
+name: Poll injuries and odds
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'      # every 10 minutes (GitHub may delay runs under load)
+  workflow_dispatch:
+    inputs:
+      force_pull:
+        description: 'Pull odds this run regardless of schedule? (1 = yes)'
+        default: '0'
+        required: false
+
+concurrency:
+  group: poll
+  cancel-in-progress: false
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install -q -r requirements.txt
+      - name: Run poller
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          FORCE_PULL: ${{ github.event.inputs.force_pull || '0' }}
+        run: python -m logger.run_poll
