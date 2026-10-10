@@ -28,7 +28,7 @@ def fetch_all(store: SupabaseStore, table: str):
 
 
 def _order(table):
-    return {"seasons": "year", "games": "id", "odds_latest": "event_id", "sync_state": "key"}.get(table, "id")
+    return {"seasons": "year", "games": "id", "odds_latest": "event_id", "sync_state": "key", "injury_items": "espn_item_id"}.get(table, "id")
 
 
 def main():
