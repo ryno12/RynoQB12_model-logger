@@ -73,12 +73,28 @@ With real keys in `.env` (`set -a; source .env; set +a`), `FORCE_PULL=1 python -
 | `injury_events` | Append-only: new items, status changes, clears; `triggered_pull` says whether it caused an odds pull |
 | `alerts` | Every alert sent, with the MyBookie and consensus numbers at the time |
 | `runs` | One row per poller run: reason, credits used/remaining, counts, notes |
-| `sync_state` | Scheduled-window bookkeeping, news cooldown and daily count, last known credits |
+| `sync_state` | Scheduled-window bookkeeping, news cooldown and daily count, last known credits, ntfy read position |
+| `bets` | Bets Ryan posts to the ntfy topic, parsed and matched to a game and (when it followed one) the alert |
 | `v_line_gaps` | View: MyBookie vs comparison median for every open market, for quick looks in the SQL editor |
 
 Closing line per game and book = the last `odds_snapshots` row (or `odds_latest`) before `games.commence_time`.
 The `close` pull makes sure one exists within 40 minutes of kickoff; the `pre` pull captures the inactives window.
 International games need nothing special here: their odd kickoff times drive both windows automatically.
+
+## Logging a bet (reply on the ntfy topic)
+
+Post a plain note to the same ntfy topic the alerts arrive on. Every poll reads new notes (free), parses them, matches
+the game, stores a `bets` row and pushes a one-line "Logged" confirmation back. Examples that work:
+
+- `Seahawks -1.5 $5` or `I took Seattle -1.5 vs Denver next week on Thurs` (spread: team and a signed number)
+- `Over 44.5 Bears Falcons -115 $10` (total: over/under, number, the teams; price and stake optional)
+- `A17 5` (alert number 17 at its line, $5) — the number is in the alert text once the model is live
+- Defaults when not stated: price -110, stake $5. Two team names must both be in the game. A spread number must be signed.
+
+Anything it cannot place is saved with status `needs_review` and a "Could not log" push tells you why; it is retried
+every run, so a bet on a game not yet in the odds table gets matched when the game appears. Nothing is lost.
+Run `sql/002_bets.sql` once in the Supabase SQL editor to create the table. `NTFY_FIRST_SINCE` (24h) sets how far back the
+first run reads; ntfy.sh keeps messages for about 12 hours, so a note older than that is gone unless you resend it.
 
 ## Trigger rules (injury events that spend credits)
 
@@ -106,4 +122,4 @@ International games need nothing special here: their odd kickoff times drive bot
 
 `ALERT_GAP_POINTS` (1.0), `ALERT_GAP_CENTS` (10), `ALERT_COOLDOWN_HOURS` (3), `NEWS_COOLDOWN_MIN` (45), `NEWS_DAILY_CAP` (6),
 `CREDIT_RESERVE_NEWS` (60), `CREDIT_RESERVE_SCHED` (20), `CLOSE_WINDOW_MIN` (40), `PRE_WINDOW_MIN_LO` (90), `PRE_WINDOW_MIN_HI` (130),
-`CONSENSUS_BOOKS`, `MIN_CONSENSUS_BOOKS` (2).
+`CONSENSUS_BOOKS`, `MIN_CONSENSUS_BOOKS` (2), `NTFY_FIRST_SINCE` (24h), `DEFAULT_STAKE` (5), `DEFAULT_PRICE` (-110).

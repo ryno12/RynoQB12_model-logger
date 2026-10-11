@@ -136,3 +136,63 @@ def test_pre_and_close_windows():
     games = [g(30), g(110), g(200), g(110, pre="done"), g(30, close="done")]
     assert [x["id"] for x in _close_due(games, now)] == ["g30"]
     assert [x["id"] for x in _pre_due(games, now)] == ["g110"]
+
+
+# ---------------------------------------------------------------- bet capture
+from logger import bets as B  # noqa: E402
+
+
+def test_bet_parse_ryans_message():
+    p = B.parse("I took Seattle -1.5 vs Denver next week on Thurs")
+    assert p["teams"] == ["Seattle Seahawks", "Denver Broncos"]
+    assert p["market"] == "spreads" and p["side"] == "Seattle Seahawks" and p["line"] == -1.5
+    assert "price" not in p and "stake" not in p
+
+
+def test_bet_parse_order_and_aliases():
+    p = B.parse("Denver +1.5 vs Seattle")                       # team order follows the text, not alias length
+    assert p["side"] == "Denver Broncos" and p["line"] == 1.5
+    p = B.parse("Chiefs -3.5 -110 10 bucks")
+    assert p["side"] == "Kansas City Chiefs" and p["line"] == -3.5 and p["price"] == -110 and p["stake"] == 10
+    p = B.parse("Over 44.5 Bears Falcons -115 $10")
+    assert p["market"] == "totals" and p["side"] == "Over" and p["line"] == 44.5 and p["price"] == -115 and p["stake"] == 10
+    assert p["teams"] == ["Chicago Bears", "Atlanta Falcons"]
+    p = B.parse("A17 5")
+    assert p["alert_id"] == 17 and p["stake"] == 5 and "line" not in p
+    p = B.parse("I was on the under, no juice, Jets game")        # 'was' and 'no' are words here, not teams
+    assert p["teams"] == ["New York Jets"] and p["side"] == "Under" and "line" not in p
+    p = B.parse("NO -3 vs CAR")                                   # capitals are abbreviations
+    assert p["teams"] == ["New Orleans Saints", "Carolina Panthers"] and p["line"] == -3
+    p = B.parse("Seahawks 1.5")                                   # unsigned spread is not trusted as a line
+    assert "line" not in p
+
+
+def test_bet_capture_end_to_end(tmp_path, monkeypatch):
+    from logger.store import LocalStore
+    monkeypatch.setattr(config, "NTFY_TOPIC", "t")
+    monkeypatch.setattr(config, "NTFY_FIXTURE", str(FIX / "ntfy_sample.json"))
+    store = LocalStore(tmp_path)
+    now = datetime(2026, 10, 11, 3, 0, tzinfo=timezone.utc)
+    store.upsert("games", [
+        {"id": "g_sea_den", "home_team": "Denver Broncos", "away_team": "Seattle Seahawks", "commence_time": "2026-10-16T00:15:00Z"},
+        {"id": "g_sea_den_old", "home_team": "Seattle Seahawks", "away_team": "Denver Broncos", "commence_time": "2026-10-01T00:15:00Z"},
+    ])
+    store.insert("alerts", [{"id": 41, "event_id": "g_sea_den", "market": "spreads", "side": "Seattle Seahawks", "mb_point": -1.5,
+                             "mb_price": -110, "sent_at": "2026-10-11T02:00:00Z"}])
+    n = B.process(store, now, run_id=1)
+    assert n == 3
+    rows = {r["raw_text"]: r for r in store.tables["bets"]}
+    sea = rows["I took Seattle -1.5 vs Denver next week on Thurs"]
+    assert sea["event_id"] == "g_sea_den" and sea["status"] == "open" and sea["tag"] == "steam" and sea["alert_id"] == 41
+    assert sea["line"] == -1.5 and sea["price"] == -110 and sea["stake"] == 5.0 and sea["received_at"] == "2026-10-11T02:41:10Z"
+    tot = rows["Over 44.5 Bears Falcons -115 $10"]
+    assert tot["status"] == "needs_review" and tot["event_id"] is None and tot["tag"] == "own"   # game not loaded
+    assert rows["new topic works"]["status"] == "needs_review"
+    assert "Line gap" not in " ".join(rows)                                                      # own alert skipped
+    assert store.get_state("ntfy:since") == "1791686600"
+    # second pass: nothing new, but the Bears game has appeared -> the total gets matched on retry
+    store.upsert("games", [{"id": "g_chi_atl", "home_team": "Atlanta Falcons", "away_team": "Chicago Bears", "commence_time": "2026-10-18T17:00:00Z"}])
+    assert B.process(store, now, run_id=2) == 1
+    tot = [r for r in store.tables["bets"] if r["raw_text"].startswith("Over")][0]
+    assert tot["status"] == "open" and tot["event_id"] == "g_chi_atl" and tot["line"] == 44.5 and tot["price"] == -115
+    assert B.describe(sea).startswith("Seattle Seahawks -1.5 (-110) $5, Seattle Seahawks @ Denver Broncos, Thu Oct 15 6:15 PM MT")

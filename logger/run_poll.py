@@ -17,6 +17,7 @@ import traceback
 from datetime import timedelta
 
 from . import alerts as A
+from . import bets as B
 from . import config, espn, ntfy
 from .oddsapi import fetch_odds
 from .snapshots import games_rows, snapshot_rows
@@ -107,6 +108,14 @@ def main():
             store.insert("injury_events", events)
         except Exception as ex:  # ESPN failing must not stop odds work
             notes.append(f"espn FAILED: {ex}")
+
+        # ---- 1b. bets posted to the ntfy topic (free) ----
+        try:
+            n_bets = B.process(store, now, run_id)
+            if n_bets:
+                notes.append(f"bets: {n_bets} logged from ntfy")
+        except Exception as ex:
+            notes.append(f"bets FAILED: {ex}")
 
         # ---- 2. decide on an odds pull ----
         games = store.upcoming_games()

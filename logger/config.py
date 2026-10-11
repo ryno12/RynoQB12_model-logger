@@ -30,6 +30,10 @@ SUPABASE_SERVICE_ROLE_KEY = _env("SUPABASE_SERVICE_ROLE_KEY", "")
 ODDS_API_KEY = _env("ODDS_API_KEY", "")
 NTFY_TOPIC = _env("NTFY_TOPIC", "")
 NTFY_SERVER = _env("NTFY_SERVER", "https://ntfy.sh")
+NTFY_FIRST_SINCE = _env("NTFY_FIRST_SINCE", "24h")   # how far back to read the topic on the very first run
+NTFY_FIXTURE = _env("NTFY_FIXTURE")                   # saved ntfy JSON messages (testing)
+DEFAULT_STAKE = _float("DEFAULT_STAKE", 5.0)
+DEFAULT_PRICE = _int("DEFAULT_PRICE", -110)
 
 # --- odds -------------------------------------------------------------------
 SPORT = "americanfootball_nfl"

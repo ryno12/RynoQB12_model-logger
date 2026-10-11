@@ -117,7 +117,7 @@ class LocalStore:
         self.root = Path(root)
         self.root.mkdir(parents=True, exist_ok=True)
         self.tables = {}
-        for t in ["games", "odds_latest", "odds_snapshots", "injury_items", "injury_events", "alerts", "runs", "sync_state", "heartbeat"]:
+        for t in ["games", "odds_latest", "odds_snapshots", "injury_items", "injury_events", "alerts", "runs", "sync_state", "heartbeat", "bets"]:
             p = self.root / f"{t}.json"
             self.tables[t] = json.loads(p.read_text()) if p.exists() else []
 
@@ -186,6 +186,18 @@ class LocalStore:
     def recent_alerts(self, since):
         s = iso(since)
         return [a for a in self.tables["alerts"] if a["sent_at"] >= s]
+
+    def select(self, table, params):
+        """Supports the PostgREST filters the poller uses: col=eq.value and col=is.null."""
+        rows = list(self.tables.get(table, []))
+        for col, cond in (params or {}).items():
+            if col in ("select", "order", "limit") or not isinstance(cond, str):
+                continue
+            if cond.startswith("eq."):
+                rows = [r for r in rows if str(r.get(col)) == cond[3:]]
+            elif cond == "is.null":
+                rows = [r for r in rows if r.get(col) is None]
+        return rows
 
     def start_run(self, kind):
         return self.insert("runs", [{"run_kind": kind, "started_at": iso(now_utc())}], returning=True)[0]["id"]
