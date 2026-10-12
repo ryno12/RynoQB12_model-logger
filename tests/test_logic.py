@@ -196,3 +196,31 @@ def test_bet_capture_end_to_end(tmp_path, monkeypatch):
     tot = [r for r in store.tables["bets"] if r["raw_text"].startswith("Over")][0]
     assert tot["status"] == "open" and tot["event_id"] == "g_chi_atl" and tot["line"] == 44.5 and tot["price"] == -115
     assert B.describe(sea).startswith("Seattle Seahawks -1.5 (-110) $5, Seattle Seahawks @ Denver Broncos, Thu Oct 15 6:15 PM MT")
+
+
+def test_bet_capture_survives_a_bad_message(tmp_path, monkeypatch):
+    """Production run 3 died with KeyError 'id' and never saved state. A failing message must not block the others,
+    and messages already stored must not be re-inserted or re-confirmed on the next run."""
+    from logger.store import LocalStore
+    monkeypatch.setattr(config, "NTFY_TOPIC", "t")
+    monkeypatch.setattr(config, "NTFY_FIXTURE", str(FIX / "ntfy_sample.json"))
+    store = LocalStore(tmp_path)
+    now = datetime(2026, 10, 11, 3, 0, tzinfo=timezone.utc)
+    store.upsert("games", [{"id": "g_sea_den", "home_team": "Denver Broncos", "away_team": "Seattle Seahawks", "commence_time": "2026-10-16T00:15:00Z"}])
+    calls = {"n": 0}
+    real_insert = store.insert
+
+    def flaky_insert(table, rows, returning=False):
+        calls["n"] += 1
+        if table == "bets" and rows[0]["raw_text"].startswith("Over"):
+            raise RuntimeError("boom")
+        return real_insert(table, rows, returning)
+    monkeypatch.setattr(store, "insert", flaky_insert)
+    import pytest
+    with pytest.raises(RuntimeError, match="2 logged, 1 failed"):
+        B.process(store, now, run_id=1)
+    assert sorted(r["raw_text"][:6] for r in store.tables["bets"]) == ["I took", "new to"]
+    assert store.get_state("ntfy:since") is None            # not advanced past a failure, so the message is retried
+    monkeypatch.setattr(store, "insert", real_insert)
+    assert B.process(store, now, run_id=2) == 1               # only the failed one is (re)logged
+    assert len(store.tables["bets"]) == 3 and store.get_state("ntfy:since") == "1791686600"

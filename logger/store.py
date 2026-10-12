@@ -197,6 +197,8 @@ class LocalStore:
                 rows = [r for r in rows if str(r.get(col)) == cond[3:]]
             elif cond == "is.null":
                 rows = [r for r in rows if r.get(col) is None]
+            elif cond.startswith("gte."):
+                rows = [r for r in rows if r.get(col) is not None and str(r.get(col)) >= cond[4:]]
         return rows
 
     def start_run(self, kind):

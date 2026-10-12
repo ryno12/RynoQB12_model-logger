@@ -178,11 +178,12 @@ def match_alert(store, parsed: dict, game):
         return rows[0] if rows else None
     if not game or not parsed.get("side"):
         return None
-    recent = store.recent_alerts(now_utc() - timedelta(hours=48))
-    same = [a for a in recent if a["event_id"] == game["id"] and a.get("side") == parsed["side"]]
-    if not same:
-        return None
-    return max(same, key=lambda a: a["sent_at"])
+    # own query: store.recent_alerts() returns a narrow column set without id / mb_point, which this needs
+    rows = store.select("alerts", {"select": "id,event_id,market,side,mb_point,mb_price,sent_at",
+                                   "event_id": f"eq.{game['id']}", "side": f"eq.{parsed['side']}",
+                                   "sent_at": f"gte.{iso(now_utc() - timedelta(hours=48))}"})
+    rows = [a for a in rows if a.get("id") is not None]
+    return max(rows, key=lambda a: a["sent_at"]) if rows else None
 
 
 def _row(parsed, game, alert):
@@ -265,30 +266,38 @@ def process(store, now, run_id) -> int:
     seen_set = set(seen)
     logged = 0
     latest = None
+    failed = []
     for m in msgs:
         latest = max(latest or 0, int(m.get("time") or 0))
         mid = m.get("id")
         if not mid or mid in seen_set or is_system(m):
             continue
-        seen.append(mid)
-        seen_set.add(mid)
         text = (m.get("message") or "").strip()
         if not text:
+            seen.append(mid); seen_set.add(mid)
             continue
-        parsed = parse(text)
-        game = match_game(store, parsed, now)
-        alert = match_alert(store, parsed, game)
-        row = _row(parsed, game, alert)
-        row.update({"ntfy_id": mid, "received_at": _received_at(m), "raw_text": text, "run_id": run_id})
-        store.insert("bets", [row])
-        logged += 1
-        _confirm(row, text)
+        try:
+            if store.select("bets", {"select": "id", "ntfy_id": f"eq.{mid}"}):   # stored on an earlier run that died before saving state
+                seen.append(mid); seen_set.add(mid)
+                continue
+            parsed = parse(text)
+            game = match_game(store, parsed, now)
+            alert = match_alert(store, parsed, game)
+            row = _row(parsed, game, alert)
+            row.update({"ntfy_id": mid, "received_at": _received_at(m), "raw_text": text, "run_id": run_id})
+            store.insert("bets", [row])
+            seen.append(mid); seen_set.add(mid)
+            logged += 1
+            _confirm(row, text)
+        except Exception as ex:   # one bad message must not block the others or poison later runs
+            failed.append(f"{mid}: {ex}")
     store.set_state("ntfy:seen_ids", ",".join(seen[-300:]))
-    if latest:
+    if latest and not failed:
         store.set_state("ntfy:since", str(latest))
     try:
-        n = rematch(store, now, run_id)
-        logged += n
+        logged += rematch(store, now, run_id)
     except Exception as ex:  # a retry must never block new captures
-        print(f"[bets] rematch failed: {ex}")
+        failed.append(f"rematch: {ex}")
+    if failed:
+        raise RuntimeError(f"{logged} logged, {len(failed)} failed: " + "; ".join(failed)[:300])
     return logged
