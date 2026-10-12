@@ -1,23 +1,38 @@
 name: Poll injuries and odds
 
+# Scheduling: GitHub throttles a */10 cron on this repo to roughly one run every 5 hours (measured
+# Oct 10-12 2026). So each scheduled run loops for ~5h45m, polling every 10 minutes, and then dispatches
+# its own successor with the built-in token. The cron stays as a backstop in case a dispatch fails.
+# Public repos get unlimited Actions minutes, so the loop costs nothing.
+
 on:
   schedule:
-    - cron: '*/10 * * * *'      # every 10 minutes (GitHub may delay runs under load)
+    - cron: '*/10 * * * *'      # backstop only; GitHub delays this heavily
   workflow_dispatch:
     inputs:
       force_pull:
-        description: 'Pull odds this run regardless of schedule? (1 = yes)'
+        description: 'Pull odds this run regardless of schedule? (1 = yes). Runs once, outside the loop.'
         default: '0'
         required: false
 
+permissions:
+  contents: read
+  actions: write               # to dispatch the successor run
+
+# Loop runs share one group so only one loop runs at a time (a pending backstop waits, then gets
+# replaced by the successor). A manual force pull uses its own group so it starts immediately.
 concurrency:
-  group: poll
+  group: ${{ github.event.inputs.force_pull == '1' && 'poll-manual' || 'poll' }}
   cancel-in-progress: false
 
 jobs:
   poll:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 360        # GitHub-hosted maximum
+    env:
+      LOOP: ${{ github.event.inputs.force_pull == '1' && '0' || '1' }}
+      LOOP_MINUTES: 345         # 5h45m, leaves headroom under the 6h cap
+      POLL_SECONDS: 600
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -25,6 +40,7 @@ jobs:
           python-version: '3.12'
           cache: pip
       - run: pip install -q -r requirements.txt
+
       - name: Run poller
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -32,4 +48,23 @@ jobs:
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
           FORCE_PULL: ${{ github.event.inputs.force_pull || '0' }}
-        run: python -m logger.run_poll
+        run: |
+          end=$(( SECONDS + LOOP_MINUTES * 60 ))
+          n=0
+          while :; do
+            n=$(( n + 1 ))
+            echo "::group::poll $n  $(date -u +%FT%TZ)"
+            python -m logger.run_poll || echo "poll $n failed (exit $?), continuing"
+            echo "::endgroup::"
+            if [ "$LOOP" != "1" ] || [ "$SECONDS" -ge "$end" ]; then
+              break
+            fi
+            sleep "$POLL_SECONDS"
+          done
+          echo "finished after $n polls"
+
+      - name: Dispatch successor
+        if: always() && env.LOOP == '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run poll.yml --ref "${{ github.ref_name }}" -R "${{ github.repository }}"
