@@ -33,11 +33,12 @@ live in the private sibling repo `~/Repos/RynoQB12_model` (read its CLAUDE.md to
   transaction and records `migration:<file>` in `sync_state`. Two ways in, either secret works: `SUPABASE_ACCESS_TOKEN`
   (a Supabase personal access token; runs the file through the Management API database/query endpoint, no database
   password needed) or `SUPABASE_DB_URL` (Session-pooler URI; direct connections are IPv6-only) plus optional
-  `SUPABASE_DB_PASSWORD`. Oct 13: the pooler rejected every password Ryan tried, so the token route was added.
-  Commit the SQL first, then dispatch. Claude cannot run DDL any other way.
+  `SUPABASE_DB_PASSWORD`. Working since Oct 13 via the URI + `SUPABASE_DB_PASSWORD` (Ryan pasted the whole URI into
+  that secret; the workflow takes the password out of it). The log prints the URI's shape with password and project
+  ref masked. Commit the SQL first, then dispatch; the run log says "applied <file>". 003 and 004 applied this way.
 - Storage is Supabase project `RynoQB12_Model` (free tier, RLS on, service key only in Actions). Schema: `sql/001_schema.sql`
   (10 tables + `v_line_gaps`), `sql/002_bets.sql` (bets), `sql/003_grading.sql` (score, profit, CLV and alert
-  follow-up columns), all applied (003 via migrate.yml on 2026-10-13).
+  follow-up columns), `sql/004_void_inplay_alerts.sql` (data fix), all applied (003 and 004 via migrate.yml, 2026-10-13).
 - Grading (`logger/grading.py`, free, every poll): games 3.5h past kickoff with no score -> ESPN scoreboard by Eastern
   date (`logger/scores.py`) -> `games.home_score/away_score/espn_status/final_at`; open bets on those games -> won/lost/
   push/void, `profit` ($), `result_units` (profit / UNIT_DOLLARS=5); closing quotes = last pre-kickoff `odds_snapshots`
