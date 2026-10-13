@@ -48,7 +48,8 @@ jobs:
               user = f"{user}.{ref}"; notes.append("added project ref to username")
           if "[" in pw or "YOUR-PASSWORD" in pw.upper(): notes.append("PASSWORD STILL CONTAINS THE [YOUR-PASSWORD] PLACEHOLDER")
           if not pw: notes.append("PASSWORD IS EMPTY")
-          print(f"user={user} host={host} port={port} db={u.path.lstrip('/')} password_len={len(pw)} {'; '.join(notes)}", file=sys.stderr)
+          shown = user.split(".")[0] + (".<ref>" if "." in user else " (NO PROJECT REF)")
+          print(f"user={shown} host={host} port={port} db={u.path.lstrip('/')} password_len={len(pw)} {'; '.join(notes)}", file=sys.stderr)
           netloc = f"{user}:{quote(pw, safe='')}@{host}" + (f":{port}" if port else "")
           print(urlunsplit((u.scheme, netloc, u.path, u.query, u.fragment)))
           PY
