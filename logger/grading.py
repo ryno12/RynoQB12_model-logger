@@ -210,6 +210,59 @@ def grade_alerts(store, games, now):
     return n
 
 
+def _pick(fair, line):
+    """home/away (or over/under via the caller) that the fair number prefers at `line`, both as home margins / totals."""
+    if fair is None or line is None or fair == line:
+        return None
+    return "hi" if fair > line else "lo"
+
+
+def _settle(pick, actual, line):
+    if pick is None or actual is None or line is None:
+        return None
+    if actual == line:
+        return "push"
+    return "won" if (actual > line) == (pick == "hi") else "lost"
+
+
+def grade_model(store, games, now):
+    """Grade the model's fair spread and total for finalized games against the consensus close and MyBookie's close.
+    Spread picks are home/away at the close as a home margin; totals over/under. Returns the number graded."""
+    from . import model as M
+    ml = M.index(store.model_lines_open())
+    n = 0
+    for g in games:
+        row = M.lookup(ml, g)
+        if not row:
+            continue
+        upd = {"graded_at": iso(now)}
+        if g.get("espn_status") not in scores.DEAD and g.get("home_score") is not None and g.get("away_score") is not None:
+            margin = float(g["home_score"]) - float(g["away_score"])
+            total = float(g["home_score"]) + float(g["away_score"])
+            upd.update(result_margin=margin, result_total=total)
+            mb, cons_pt, _, _ = _close_for(store, g, "spreads", g["home_team"])
+            close_sp = -float(cons_pt) if cons_pt is not None else None
+            mb_sp = -float(mb["point"]) if mb and mb.get("point") is not None else None
+            fair_sp = M._f(row.get("fair_spread"))
+            names = {"hi": "home", "lo": "away", None: None}
+            p1, p2 = _pick(fair_sp, close_sp), _pick(fair_sp, mb_sp)
+            upd.update(close_spread=close_sp, mb_close_spread=mb_sp,
+                       spread_pick=names[p1], spread_vs_close=_settle(p1, margin, close_sp),
+                       spread_pick_mb=names[p2], spread_vs_mb=_settle(p2, margin, mb_sp))
+            mb, cons_pt, _, _ = _close_for(store, g, "totals", "Over")
+            close_t = float(cons_pt) if cons_pt is not None else None
+            mb_t = float(mb["point"]) if mb and mb.get("point") is not None else None
+            fair_t = M._f(row.get("fair_total"))
+            names = {"hi": "over", "lo": "under", None: None}
+            p1, p2 = _pick(fair_t, close_t), _pick(fair_t, mb_t)
+            upd.update(close_total=close_t, mb_close_total=mb_t,
+                       total_pick=names[p1], total_vs_close=_settle(p1, total, close_t),
+                       total_pick_mb=names[p2], total_vs_mb=_settle(p2, total, mb_t))
+        store.patch("model_lines", {"game_key": f"eq.{row['game_key']}"}, upd)
+        n += 1
+    return n
+
+
 def run(store, now):
     """One grading pass. Returns a short note or None when nothing happened."""
     games, unresolved = update_scores(store, now)
@@ -217,9 +270,15 @@ def run(store, now):
         return None
     nb = grade_bets(store, games, now)
     na = grade_alerts(store, games, now)
+    try:
+        nm = grade_model(store, games, now)
+    except Exception as ex:   # model grading must not block bet grading
+        nm = f"FAILED ({ex})"
     finals = "; ".join(f"{g['away_team']} {g.get('away_score')} @ {g['home_team']} {g.get('home_score')}" if g.get("espn_status") == scores.FINAL
                        else f"{g['away_team']} @ {g['home_team']} {g.get('espn_status')}" for g in games)
     note = f"graded: {len(games)} finals ({finals}), {nb} bets, {na} alerts"
+    if nm:
+        note += f", {nm} model lines"
     if unresolved:
         note += f", {unresolved} games unresolved after {config.GRADE_GIVEUP_DAYS} days"
     return note

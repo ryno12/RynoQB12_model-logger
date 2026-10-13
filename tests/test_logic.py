@@ -334,7 +334,7 @@ def test_grading_end_to_end(tmp_path, monkeypatch):
     store = LocalStore(tmp_path)
     now = datetime(2026, 10, 13, 12, 0, tzinfo=timezone.utc)
     store.upsert("games", [
-        {"id": "g_bal", "home_team": "Atlanta Falcons", "away_team": "Baltimore Ravens", "commence_time": "2026-10-12T00:23:29Z"},
+        {"id": "g_bal", "season": 2026, "week": 5, "home_team": "Atlanta Falcons", "away_team": "Baltimore Ravens", "commence_time": "2026-10-12T00:23:29Z"},
         {"id": "g_buf", "home_team": "Los Angeles Rams", "away_team": "Buffalo Bills", "commence_time": "2026-10-13T00:15:00Z"},
         {"id": "g_sea", "home_team": "Denver Broncos", "away_team": "Seattle Seahawks", "commence_time": "2026-10-16T00:15:00Z"},   # future
         {"id": "g_old", "home_team": "Nowhere", "away_team": "Nobody", "commence_time": "2026-10-01T00:00:00Z"},                 # never resolved
@@ -346,6 +346,9 @@ def test_grading_end_to_end(tmp_path, monkeypatch):
         q("g_bal", "draftkings", "spreads", "Baltimore Ravens", -4.5, -108, "2026-10-11T22:24:00Z"),
         q("g_bal", "fanduel", "spreads", "Baltimore Ravens", -5.0, -110, "2026-10-11T22:24:00Z"),
         q("g_bal", "mybookieag", "spreads", "Baltimore Ravens", -6.5, -110, "2026-10-12T01:27:00Z"),   # in-play, ignored
+        q("g_bal", "mybookieag", "spreads", "Atlanta Falcons", 3.5, -110, "2026-10-11T22:24:00Z"),
+        q("g_bal", "draftkings", "spreads", "Atlanta Falcons", 4.5, -112, "2026-10-11T22:24:00Z"),
+        q("g_bal", "fanduel", "spreads", "Atlanta Falcons", 5.0, -110, "2026-10-11T22:24:00Z"),
         q("g_buf", "mybookieag", "spreads", "Buffalo Bills", 1.5, -125, "2026-10-13T00:00:00Z"),
         q("g_buf", "draftkings", "spreads", "Buffalo Bills", 2.5, -110, "2026-10-13T00:00:00Z"),
         q("g_buf", "fanduel", "spreads", "Buffalo Bills", 2.5, -112, "2026-10-13T00:00:00Z"),
@@ -360,8 +363,10 @@ def test_grading_end_to_end(tmp_path, monkeypatch):
                              "cons_point": -4.5, "gap_points": 1.0, "sent_at": "2026-10-11T22:30:00Z"},
                             {"id": 44, "event_id": "g_bal", "market": "spreads", "side": "Baltimore Ravens", "mb_point": -21.5, "mb_price": -110,
                              "cons_point": -23.5, "gap_points": 2.0, "sent_at": "2026-10-12T02:30:00Z"}])   # sent in-play
+    store.upsert("model_lines", [{"game_key": "2026-05-BAL-ATL", "season": 2026, "week": 5, "home_team": "Atlanta Falcons", "away_team": "Baltimore Ravens",
+                                  "fair_spread": -2.0, "fair_total": 44.0, "shrink_spread": 0.5, "sigma_spread": 13.0, "shrink_total": 0.2, "sigma_total": 10.0}])
     note = G.run(store, now)
-    assert note.startswith("graded: 2 finals (Baltimore Ravens 30 @ Atlanta Falcons 23; Buffalo Bills 37 @ Los Angeles Rams 34), 2 bets, 2 alerts")
+    assert note.startswith("graded: 2 finals (Baltimore Ravens 30 @ Atlanta Falcons 23; Buffalo Bills 37 @ Los Angeles Rams 34), 2 bets, 2 alerts, 1 model lines")
     assert "1 games unresolved" in note
     bets = {b["id"]: b for b in store.tables["bets"]}
     bal, buf = bets[4], bets[5]
@@ -376,6 +381,11 @@ def test_grading_end_to_end(tmp_path, monkeypatch):
     a, inplay = store.tables["alerts"]
     assert a["result"] == "won" and a["profit"] == 4.55 and a["close_gap_points"] == 1.25 and a["moved_toward_consensus"] is False
     assert inplay["result"] == "void" and inplay["profit"] == 0 and inplay["graded_at"]   # in-play line, not a pre-game suggestion
+    m = store.tables["model_lines"][0]
+    # fair Atlanta -2 (home margin -2) vs close +4.75 for Atlanta -> close_spread -4.75: model likes the home side; Falcons lost by 7
+    assert m["close_spread"] == -4.75 and m["mb_close_spread"] == -3.5 and m["result_margin"] == -7 and m["result_total"] == 53
+    assert m["spread_pick"] == "home" and m["spread_vs_close"] == "lost" and m["spread_pick_mb"] == "home" and m["spread_vs_mb"] == "lost"
+    assert m["close_total"] is None and m["total_pick"] is None and m["total_vs_close"] is None and m["graded_at"]
     assert G.run(store, now) is None   # nothing left to grade; no second pass over the same games
 
 
@@ -414,6 +424,9 @@ def test_weekly_report_from_graded_store(tmp_path, monkeypatch):
         q("g_bal", "mybookieag", "spreads", "Baltimore Ravens", -3.5, -110, "2026-10-11T22:24:00Z"),
         q("g_bal", "draftkings", "spreads", "Baltimore Ravens", -4.5, -108, "2026-10-11T22:24:00Z"),
         q("g_bal", "fanduel", "spreads", "Baltimore Ravens", -5.0, -110, "2026-10-11T22:24:00Z"),
+        q("g_bal", "mybookieag", "spreads", "Atlanta Falcons", 3.5, -110, "2026-10-11T22:24:00Z"),
+        q("g_bal", "draftkings", "spreads", "Atlanta Falcons", 4.5, -112, "2026-10-11T22:24:00Z"),
+        q("g_bal", "fanduel", "spreads", "Atlanta Falcons", 5.0, -110, "2026-10-11T22:24:00Z"),
     ])
     store.insert("bets", [
         {"id": 4, "event_id": "g_bal", "market": "spreads", "side": "Baltimore Ravens", "line": -4.5, "price": -110, "stake": 5, "status": "open", "raw_text": "Balt -4.5 (-110)"},
@@ -432,6 +445,11 @@ def test_weekly_report_from_graded_store(tmp_path, monkeypatch):
         {"run_kind": "poll", "started_at": "2026-10-12T11:00:00Z", "pulled_odds": False, "pull_reason": "none", "notes": "espn FAILED: boom | no odds pull this run"},
         {"run_kind": "poll", "started_at": "2026-10-01T11:00:00Z", "pulled_odds": True, "pull_reason": "news", "credits_remaining": 480, "notes": "old, outside the window"},
     ])
+    store.upsert("model_lines", [
+        {"game_key": "2026-05-BAL-ATL", "season": 2026, "week": 5, "home_team": "Atlanta Falcons", "away_team": "Baltimore Ravens", "gameday": "2026-10-11",
+         "fair_spread": -2.0, "fair_total": 44.0, "shrink_spread": 0.0, "shrink_total": 0.1, "sigma_spread": 13.0, "sigma_total": 10.0},
+        {"game_key": "2026-06-SEA-DEN", "season": 2026, "week": 6, "home_team": "Denver Broncos", "away_team": "Seattle Seahawks", "fair_spread": 0.0, "fair_total": 42.0},
+    ])
     G.run(store, now)
     data = R.load_store(store, now - timedelta(days=8))
     assert R.report_week(now, data["seasons"]) == (2026, 5)
@@ -445,9 +463,13 @@ def test_weekly_report_from_graded_store(tmp_path, monkeypatch):
     assert "Week: 3 sent, 1 voided (in-play line), 0 ungraded. Pre-game alerts **2-0-0**, +$9.10; 0% moved toward consensus" in md
     assert "2 distinct lines, 1 repeats" in md
     assert "Season: 4 sent, 1 voided, pre-game **2-0-0**, +$9.10, 0% moved toward consensus (2 graded)" in md
+    assert "Week: 1 games, 1 graded. Spread picks vs close **0-1-0**, vs MyBookie close 0-1-0; totals vs close **0-0-0**" in md
+    assert "Fair spread off the close by 2.8 pts on average (bias +2.8)" in md and "Shrink 0.00 spreads / 0.10 totals" in md
+    assert "| Baltimore Ravens @ Atlanta Falcons | +2 / +4.75 / +3.5 | -7 | lost | lost | 44 / n/a / n/a | 53 | - | - |" in md
+    assert "Model spreads 0-1-0, totals 0-0-0 vs close" in msg
     assert "3 polls, 1 with a failure; 2 odds pulls (news 1, scheduled 1); 4 credits used, **438 remaining**" in md
     assert "pre-kickoff pull: 0 of 2; with a close pull: 1 of 2" in md and "1x `espn FAILED: boom`" in md
-    assert msg.startswith("Bets 1-1-0, -$0.45, CLV +0.25 | Season 1-1-0, bank $300 | Alerts 2-0-0, +$9.10, 0% to close, 1 in-play voided | Credits 438 (4 used), 3 polls, 1 failed")
+    assert msg.startswith("Bets 1-1-0, -$0.45, CLV +0.25 | Season 1-1-0, bank $300 | Alerts 2-0-0, +$9.10, 0% to close, 1 in-play voided | Model spreads 0-1-0, totals 0-0-0 vs close | Credits 438 (4 used), 3 polls, 1 failed")
 
 
 def test_own_pushes_are_not_parsed_as_bets():
@@ -459,3 +481,25 @@ def test_own_pushes_are_not_parsed_as_bets():
     assert B.is_system({"title": "Logged"}) and B.is_system({"title": "Could not log"})
     assert not B.is_system({"title": "", "message": "Seahawks -1.5 $5"})
     assert not B.is_system({"message": "A12 10"})
+
+
+def test_model_view_signs_and_text():
+    """Fair home margin -2 (home expected to lose by 2). The away side at -3.5 is 1.5 pts worse than fair; the home
+    side at +3.5 is 1.5 pts better. Totals: Under 47.5 with a fair 44 is 3.5 pts of cushion."""
+    from logger import model as M
+    row = {"fair_spread": -2.0, "fair_total": 44.0, "shrink_spread": 0.5, "sigma_spread": 13.0, "shrink_total": 0.2, "sigma_total": 10.0}
+    v = M.view(row, "spreads", "Baltimore Ravens", -3.5, "Atlanta Falcons")
+    assert v["model_point"] == -2.0 and v["model_raw"] == -1.5 and v["model_edge"] == -0.75 and abs(v["model_p"] - 0.477) < 0.002
+    v = M.view(row, "spreads", "Atlanta Falcons", 3.5, "Atlanta Falcons")
+    assert v["model_point"] == 2.0 and v["model_raw"] == 1.5 and v["model_edge"] == 0.75 and abs(v["model_p"] - 0.523) < 0.002
+    v = M.view(row, "totals", "Under", 47.5, "Atlanta Falcons")
+    assert v["model_point"] == 44.0 and v["model_raw"] == 3.5 and v["model_edge"] == 0.7 and abs(v["model_p"] - 0.528) < 0.002
+    assert M.view(row, "totals", "Over", 47.5, "Atlanta Falcons")["model_raw"] == -3.5
+    assert M.view({"fair_spread": None}, "spreads", "x", 1, "x") is None and M.view(None, "spreads", "x", 1, "x") is None
+    assert M.text(v, "totals", "Under").startswith("Model (unproven): fair total 44; raw lean +3.5 pts")
+    assert M.text(None, "spreads", "x") == "Model: no number for this game."
+    cands = [{"event_id": "g", "market": "spreads", "side": "Atlanta Falcons", "mb_point": 3.5}, {"event_id": "nope", "market": "totals", "side": "Over", "mb_point": 40}]
+    M.annotate(cands, [dict(row, week=5, home_team="Atlanta Falcons", away_team="Baltimore Ravens")],
+               {"g": {"week": 5, "home_team": "Atlanta Falcons", "away_team": "Baltimore Ravens"}})
+    assert cands[0]["model_edge"] == 0.75 and "fair Atlanta Falcons +2" in cands[0]["model_text"]
+    assert "model_edge" not in cands[1] and cands[1]["model_text"] == "Model: no number for this game."

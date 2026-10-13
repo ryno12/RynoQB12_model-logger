@@ -63,6 +63,17 @@ live in the private sibling repo `~/Repos/RynoQB12_model` (read its CLAUDE.md to
   copy the fixture and shift `commence_time` into the future to exercise snapshots and alerts.
   No `python` on this Mac: use `uv run --python 3.12 --with pytest --with 'requests>=2.31' python -m pytest -q`.
 
+## Model lines (live since 2026-10-13, unproven)
+
+The private model repo publishes its fair spread (home margin, nflverse sign) and total for the coming week to
+`model_lines` (`rqb/live.py`, workflow `model_lines.yml`: Tue 14:00 and Fri 22:30 UTC, needs the two Supabase secrets
+on that repo). Each row carries `shrink_*` (0..1, how much of the model's disagreement with a line has historically
+been real; spreads ~0.00, totals ~0.07 as of Oct 13) and `sigma_*`. `logger/model.py` turns a row into the model's
+view of any side at any number (edge = shrink * raw, p = Phi(edge / sigma)); every alert ends with that line, labelled
+unproven, and `alerts.model_point/model_edge/model_p` are stored. Grading fills the row's close (consensus and
+MyBookie), result and pick outcomes (`spread_vs_close`, `spread_vs_mb`, `total_vs_*`); the weekly report has a Model
+section. The model gets no say in bets until it clears the hypothesis bar in the model repo.
+
 ## Scheduling (fixed 2026-10-12)
 
 GitHub ran the `*/10` cron 8 times in 44 hours. Fixed with the self-chaining loop above (commit a4e7bc8); verified
@@ -104,7 +115,8 @@ machine (Ryan is willing, but only if needed).
    like that done through migrate.yml by Claude, not by hand in the SQL editor.
 3. ~~Weekly report~~ built 2026-10-13 (see dump.yml above); first one is `reports/2026/week-05.md`.
 4. Player adjustments table (only if Ryan has real opinions to enter), tracked and graded as a hypothesis.
-5. Model number in alerts / suggestion log: not yet, model has nothing to say at the 55% threshold.
+5. ~~Model number in alerts~~ live 2026-10-13 (see Model lines). Next: a model-vs-MyBookie alert type once shrink
+   is non-zero for anything, the simulation layer for alternate-line pricing, then player-level features as hypotheses.
 6. Step 3: one-time $30 Odds API history month to test Monday openers vs close (Ryan OK'd the idea earlier).
 7. ~~Cosmetic: repo description typo~~ fixed 2026-10-13 (both repos).
 

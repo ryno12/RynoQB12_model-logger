@@ -120,6 +120,10 @@ class SupabaseStore:
     def ungraded_alerts(self, event_id):
         return self.select("alerts", {"select": "*", "event_id": f"eq.{event_id}", "graded_at": "is.null"})
 
+    def model_lines_open(self):
+        """Model rows not yet graded: the coming week's and any awaiting a final."""
+        return self.select_all("model_lines", {"select": "*", "graded_at": "is.null"}, order="game_key")
+
     def injury_items(self):
         # ~800 live items plus every cleared one, so well over the 1000-row cap. Anything not loaded here is seen as
         # "new" on every poll and fires bogus injury triggers (found 2026-10-13: 650 rows missing, 11 triggers a poll).
@@ -148,7 +152,7 @@ class LocalStore:
         self.root = Path(root)
         self.root.mkdir(parents=True, exist_ok=True)
         self.tables = {}
-        for t in ["games", "odds_latest", "odds_snapshots", "injury_items", "injury_events", "alerts", "runs", "sync_state", "heartbeat", "bets"]:
+        for t in ["games", "odds_latest", "odds_snapshots", "injury_items", "injury_events", "alerts", "runs", "sync_state", "heartbeat", "bets", "model_lines"]:
             p = self.root / f"{t}.json"
             self.tables[t] = json.loads(p.read_text()) if p.exists() else []
 
@@ -157,7 +161,7 @@ class LocalStore:
 
     def _pk(self, table):
         return {"games": ("id",), "odds_latest": ("event_id", "bookmaker", "market", "outcome"),
-                "injury_items": ("espn_item_id",), "sync_state": ("key",)}.get(table)
+                "injury_items": ("espn_item_id",), "sync_state": ("key",), "model_lines": ("game_key",)}.get(table)
 
     def upsert(self, table, rows, on_conflict=None):
         pk = self._pk(table)
@@ -213,6 +217,9 @@ class LocalStore:
 
     def injury_items(self):
         return list(self.tables["injury_items"])
+
+    def model_lines_open(self):
+        return [r for r in self.tables["model_lines"] if r.get("graded_at") is None]
 
     def games_awaiting_score(self, before):
         b = iso(before)

@@ -131,7 +131,8 @@ def build_message(c, reason):
            f"Edge: {', '.join(bits)} ({c['cons_books']} comparison books)\n"
            f"Kickoff: {when}\n"
            f"Trigger: {reason}\n"
-           f"Captured: {now_utc().astimezone(DENVER).strftime('%-I:%M %p MT')}. Model: not yet live.")
+           f"Captured: {now_utc().astimezone(DENVER).strftime('%-I:%M %p MT')}.\n"
+           f"{c.get('model_text') or 'Model: no number for this game.'}")
     return title, msg
 
 

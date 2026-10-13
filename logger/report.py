@@ -66,15 +66,21 @@ def load_store(store, since):
     bets = store.select_all("bets", {"select": "*"}, order="id")
     alerts = store.select_all("alerts", {"select": "*"}, order="id")
     runs = store.select_all("runs", {"select": "*", "started_at": f"gte.{iso(since)}"}, order="id")
-    return dict(games=games, bets=bets, alerts=alerts, runs=runs, seasons=store.seasons())
+    try:
+        model_lines = store.select_all("model_lines", {"select": "*"}, order="game_key")
+    except Exception:
+        model_lines = []
+    return dict(games=games, bets=bets, alerts=alerts, runs=runs, model_lines=model_lines, seasons=store.seasons())
 
 
 def load_dump(d):
     import pyarrow.parquet as pq
     from datetime import date
     t = {n: pq.read_table(Path(d) / f"{n}.parquet").to_pylist() for n in ["games", "bets", "alerts", "runs", "seasons"]}
+    ml = Path(d) / "model_lines.parquet"
+    t["model_lines"] = pq.read_table(ml).to_pylist() if ml.exists() else []
     t["seasons"] = {int(r["year"]): date.fromisoformat(str(r["week1_tuesday"])) for r in t["seasons"]} or dict(config.SEASONS_FALLBACK)
-    for rows in (t["games"], t["bets"], t["alerts"], t["runs"]):
+    for rows in (t["games"], t["bets"], t["alerts"], t["runs"], t["model_lines"]):
         for r in rows:
             for k, v in r.items():
                 if hasattr(v, "isoformat"):
@@ -122,6 +128,22 @@ def alert_stats(alerts):
     )
 
 
+def model_stats(rows):
+    g = [r for r in rows if r.get("graded_at")]
+    sp = [(_f(r.get("fair_spread")), _f(r.get("close_spread"))) for r in g]
+    sp = [(a, b) for a, b in sp if a is not None and b is not None]
+    tt = [(_f(r.get("fair_total")), _f(r.get("close_total"))) for r in g]
+    tt = [(a, b) for a, b in tt if a is not None and b is not None]
+    return dict(
+        n=len(rows), graded=len(g),
+        sp_close=record(g, "spread_vs_close"), sp_mb=record(g, "spread_vs_mb"),
+        tot_close=record(g, "total_vs_close"), tot_mb=record(g, "total_vs_mb"),
+        mae_spread=_avg(abs(a - b) for a, b in sp), bias_spread=_avg(a - b for a, b in sp),
+        mae_total=_avg(abs(a - b) for a, b in tt), bias_total=_avg(a - b for a, b in tt),
+        shrink=_avg(_f(r.get("shrink_spread")) for r in rows), shrink_t=_avg(_f(r.get("shrink_total")) for r in rows),
+    )
+
+
 def run_stats(runs, games_in_week):
     polls = [r for r in runs if r.get("run_kind") == "poll"]
     failed = [r for r in polls if "FAILED" in (r.get("notes") or "")]
@@ -159,6 +181,9 @@ def build(data, season, week, now):
     bw, bs = bet_stats(wk_bets), bet_stats([b for b in bets_all if b.get("status") in GRADED])
     aw, as_ = alert_stats(wk_alerts), alert_stats(alerts_all)
     rs = run_stats(runs, wk_games)
+    models = data.get("model_lines") or []
+    wk_models = [m for m in models if m.get("season") == season and m.get("week") == week]
+    mw, ms = model_stats(wk_models), model_stats(models)
     bankroll = BANKROLL_START + bs["profit"]
     open_bets = [b for b in bets_all if b.get("status") == "open"]
     review = [b for b in bets_all if b.get("status") == "needs_review"]
@@ -217,6 +242,27 @@ def build(data, season, week, now):
     L.append(f"- Season: {as_['sent']} sent, {as_['void']} voided, pre-game **{as_['record']}**, {_money(as_['profit'])}, "
              f"{'n/a' if as_['moved'] is None else f'{as_['moved']:.0%}'} moved toward consensus ({as_['moved_n']} graded).")
     L.append("")
+    L.append("## Model (fair lines from the model repo, unproven)")
+    L.append("")
+    if not wk_models:
+        L.append("- No model lines for this week.")
+    else:
+        L.append(f"- Week: {mw['n']} games, {mw['graded']} graded. Spread picks vs close **{mw['sp_close']}**, vs MyBookie close {mw['sp_mb']}; "
+                 f"totals vs close **{mw['tot_close']}**, vs MyBookie {mw['tot_mb']}. Fair spread off the close by "
+                 f"{'n/a' if mw['mae_spread'] is None else f'{mw['mae_spread']:.1f}'} pts on average (bias {_signed(mw['bias_spread'], 1)}), "
+                 f"total by {'n/a' if mw['mae_total'] is None else f'{mw['mae_total']:.1f}'} (bias {_signed(mw['bias_total'], 1)}). "
+                 f"Shrink {'n/a' if mw['shrink'] is None else f'{mw['shrink']:.2f}'} spreads / {'n/a' if mw['shrink_t'] is None else f'{mw['shrink_t']:.2f}'} totals.")
+        L.append(f"- Season: {ms['graded']} graded. Spreads vs close **{ms['sp_close']}**, vs MyBookie {ms['sp_mb']}; totals vs close **{ms['tot_close']}**, vs MyBookie {ms['tot_mb']}.")
+        L.append("")
+        L.append("| Game | Home line: fair / close / MB | Margin | vs close | vs MB | Total: fair / close / MB | Total | vs close | vs MB |")
+        L.append("|---|---|---|---|---|---|---|---|---|")
+        for m in sorted(wk_models, key=lambda m: (m.get("gameday") or "", m["game_key"])):
+            fs, cs, mbs = (_f(m.get("fair_spread")), _f(m.get("close_spread")), _f(m.get("mb_close_spread")))
+            hl = " / ".join("n/a" if x is None else f"{-x:+g}" for x in (fs, cs, mbs))
+            tl = " / ".join("n/a" if x is None else f"{x:g}" for x in (_f(m.get("fair_total")), _f(m.get("close_total")), _f(m.get("mb_close_total"))))
+            L.append(f"| {m['away_team']} @ {m['home_team']} | {hl} | {_signed(_f(m.get('result_margin')), 0)} | {m.get('spread_vs_close') or '-'} | {m.get('spread_vs_mb') or '-'} | "
+                     f"{tl} | {'n/a' if _f(m.get('result_total')) is None else f'{_f(m.get('result_total')):g}'} | {m.get('total_vs_close') or '-'} | {m.get('total_vs_mb') or '-'} |")
+    L.append("")
     L.append("## Logger (last 7 days)")
     L.append("")
     L.append(f"- {rs['polls']} polls, {rs['failed']} with a failure; {rs['pulls']} odds pulls "
@@ -232,8 +278,9 @@ def build(data, season, week, now):
            f"Season {bs['record']}, bank ${bankroll:.0f}"
            + (f" | PAUSE: {'; '.join(pause)}" if pause else "") +
            f" | Alerts {aw['record']}, {_money(aw['profit'])}, "
-           f"{'n/a' if aw['moved'] is None else f'{aw['moved']:.0%}'} to close, {aw['void']} in-play voided | "
-           f"Credits {'n/a' if rs['remaining'] is None else int(rs['remaining'])} ({rs['used']:.0f} used), {rs['polls']} polls, {rs['failed']} failed")
+           f"{'n/a' if aw['moved'] is None else f'{aw['moved']:.0%}'} to close, {aw['void']} in-play voided"
+           + (f" | Model spreads {mw['sp_close']}, totals {mw['tot_close']} vs close" if mw["graded"] else "") +
+           f" | Credits {'n/a' if rs['remaining'] is None else int(rs['remaining'])} ({rs['used']:.0f} used), {rs['polls']} polls, {rs['failed']} failed")
     return md, title, msg
 
 

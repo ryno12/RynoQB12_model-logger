@@ -9,7 +9,7 @@ import pyarrow.parquet as pq
 
 from .store import SupabaseStore
 
-TABLES = ["seasons", "games", "odds_latest", "odds_snapshots", "injury_items", "injury_events", "alerts", "runs", "sync_state", "heartbeat", "bets"]
+TABLES = ["seasons", "games", "odds_latest", "odds_snapshots", "injury_items", "injury_events", "alerts", "runs", "sync_state", "heartbeat", "bets", "model_lines"]
 
 
 def fetch_all(store: SupabaseStore, table: str):
@@ -17,7 +17,7 @@ def fetch_all(store: SupabaseStore, table: str):
 
 
 def _order(table):
-    return {"seasons": "year", "games": "id", "odds_latest": "event_id", "sync_state": "key", "injury_items": "espn_item_id"}.get(table, "id")
+    return {"seasons": "year", "games": "id", "odds_latest": "event_id", "sync_state": "key", "injury_items": "espn_item_id", "model_lines": "game_key"}.get(table, "id")
 
 
 def main():

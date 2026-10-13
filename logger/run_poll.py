@@ -18,6 +18,7 @@ from datetime import timedelta
 
 from . import alerts as A
 from . import grading
+from . import model as M
 from . import bets as B
 from . import config, espn, ntfy
 from .oddsapi import fetch_odds
@@ -198,6 +199,10 @@ def main():
             cands = A.find_gaps(upserts, games_by_id)
             recent = store.recent_alerts(now - timedelta(hours=config.ALERT_COOLDOWN_HOURS))
             cands = A.filter_cooldown(cands, recent)
+            try:
+                M.annotate(cands, store.model_lines_open(), games_by_id)
+            except Exception as ex:   # the model is optional; never block an alert on it
+                notes.append(f"model lookup FAILED: {ex}")
             # Insert first, then push: the push carries the row's id ("A12") so a reply can reference it.
             pushes, sent_rows = [], []
             for c in sorted(cands, key=lambda c: (-c["gap_points"], -c["gap_cents"])):
@@ -208,6 +213,7 @@ def main():
                     "mb_point": c["mb_point"], "mb_price": c["mb_price"], "cons_point": c["cons_point"], "cons_price": c["cons_price"],
                     "cons_books": c["cons_books"], "gap_points": c["gap_points"], "gap_cents": c["gap_cents"], "key_cross": c["key_cross"],
                     "reason": trig_txt, "message": msg, "sent_at": iso(now_utc()), "run_id": run_id,
+                    "model_point": c.get("model_point"), "model_edge": c.get("model_edge"), "model_p": c.get("model_p"),
                 })
             inserted = (store.insert("alerts", sent_rows, returning=True) or []) if sent_rows else []
             for (title, msg), row in zip(pushes, inserted):
