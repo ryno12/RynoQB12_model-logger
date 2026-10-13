@@ -4,6 +4,8 @@ name: Apply SQL migration
 # Needs the SUPABASE_DB_URL secret: the "Session pooler" connection URI from the Supabase dashboard (Connect button).
 # The direct connection is IPv6-only on the free tier and GitHub runners have no IPv6, so it must be the pooler URI.
 # Each applied file is recorded in sync_state as migration:<file> = <timestamp>.
+# Alternative that needs no database password: set the SUPABASE_ACCESS_TOKEN secret (a personal access token from
+# supabase.com/dashboard/account/tokens) and the file is run through the Management API's database/query endpoint.
 
 on:
   workflow_dispatch:
@@ -24,9 +26,31 @@ jobs:
   migrate:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    env:
+      HAVE_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN != '' && '1' || '0' }}
     steps:
       - uses: actions/checkout@v4
+      - name: Apply ${{ inputs.file }} via Management API
+        if: ${{ env.HAVE_TOKEN == '1' }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          FILE: ${{ inputs.file }}
+        run: |
+          case "$FILE" in sql/*.sql) ;; *) echo "refusing: $FILE is not a file under sql/"; exit 1 ;; esac
+          [ -f "$FILE" ] || { echo "no such file: $FILE"; exit 1; }
+          REF=$(printf '%s' "$SUPABASE_URL" | sed -E 's#^https?://([^.]+)\.supabase\.co.*$#\1#')
+          [ -n "$REF" ] && [ "$REF" != "$SUPABASE_URL" ] || { echo "cannot read the project ref from SUPABASE_URL"; exit 1; }
+          run_sql() {  # $1 = SQL text; prints the JSON result, fails on a non-2xx status
+            jq -n --arg q "$1" '{query: $q}' | curl -sS --fail-with-body -X POST \
+              "https://api.supabase.com/v1/projects/$REF/database/query" \
+              -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H "Content-Type: application/json" -d @-
+          }
+          run_sql "begin; $(cat "$FILE") commit;" >/dev/null
+          run_sql "insert into sync_state (key, value, updated_at) values ('migration:$FILE', now()::text, now()) on conflict (key) do update set value = excluded.value, updated_at = excluded.updated_at;" >/dev/null
+          echo "applied $FILE"
       - name: Apply ${{ inputs.file }}
+        if: ${{ env.HAVE_TOKEN != '1' }}
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
