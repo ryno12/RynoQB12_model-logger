@@ -503,3 +503,37 @@ def test_model_view_signs_and_text():
                {"g": {"week": 5, "home_team": "Atlanta Falcons", "away_team": "Baltimore Ravens"}})
     assert cands[0]["model_edge"] == 0.75 and "fair Atlanta Falcons +2" in cands[0]["model_text"]
     assert "model_edge" not in cands[1] and cands[1]["model_text"] == "Model: no number for this game."
+
+
+def test_model_vs_mybookie_push_once_per_run(tmp_path):
+    from logger import model as M
+    from logger.store import LocalStore
+    store = LocalStore(tmp_path)
+    games = [{"id": "g1", "week": 6, "home_team": "New England Patriots", "away_team": "New York Jets", "commence_time": "2026-10-18T17:00:00Z"},
+             {"id": "g2", "week": 6, "home_team": "Denver Broncos", "away_team": "Seattle Seahawks", "commence_time": "2026-10-16T00:15:00Z"}]
+    store.upsert("games", games)
+    store.upsert("model_lines", [
+        {"game_key": "2026-06-NYJ-NE", "season": 2026, "week": 6, "home_team": "New England Patriots", "away_team": "New York Jets",
+         "fair_spread": 12.4, "fair_total": 45.8, "shrink_spread": 0.0, "sigma_spread": 12.8, "shrink_total": 0.07, "sigma_total": 10.0, "computed_at": "2026-10-13T20:15:20Z"},
+        {"game_key": "2026-06-SEA-DEN", "season": 2026, "week": 6, "home_team": "Denver Broncos", "away_team": "Seattle Seahawks",
+         "fair_spread": 0.0, "fair_total": 42.0, "shrink_spread": 0.0, "sigma_spread": 12.8, "shrink_total": 0.07, "sigma_total": 10.0, "computed_at": "2026-10-13T20:15:20Z"},
+    ])
+    def q(ev, mk, oc, pt):
+        return {"event_id": ev, "bookmaker": "mybookieag", "market": mk, "outcome": oc, "point": pt, "price": -110}
+    store.upsert("odds_latest", [q("g1", "spreads", "New England Patriots", -7.5), q("g1", "spreads", "New York Jets", 7.5),
+                                 q("g1", "totals", "Over", 43.5), q("g2", "spreads", "Denver Broncos", 2.5), q("g2", "totals", "Over", 40.5)])
+    sent = []
+    note = M.notify_if_new(store, games, None, lambda t, m: sent.append((t, m)), "mybookieag")
+    assert note.startswith("model run 2026-10-13T20:15:20Z: pushed 4 of 4") and len(sent) == 1
+    title, msg = sent[0]
+    assert title == "Model vs MyBookie: 2 games"
+    lines = msg.split("\n")
+    assert lines[0] == "Jets @ Patriots: fair Patriots -12.4 vs MB -7.5 -> Patriots by 4.9 pts (trusted 0.0)"
+    assert lines[1] == "Seahawks @ Broncos: fair Broncos -0.0 vs MB +2.5 -> Broncos by 2.5 pts (trusted 0.0)"
+    assert lines[2] == "Jets @ Patriots: fair total 45.8 vs MB 43.5 -> Over by 2.3 pts (trusted 0.2)"
+    assert lines[3] == "Seahawks @ Broncos: fair total 42.0 vs MB 40.5 -> Over by 1.5 pts (trusted 0.1)"
+    assert lines[-1].startswith("Unproven")
+    # same run again: nothing; a newer run: pushed again
+    assert M.notify_if_new(store, games, None, lambda t, m: sent.append((t, m)), "mybookieag") is None and len(sent) == 1
+    store.upsert("model_lines", [{"game_key": "2026-06-SEA-DEN", "computed_at": "2026-10-16T22:30:00Z", "fair_spread": -1.0}])
+    assert M.notify_if_new(store, games, None, lambda t, m: sent.append((t, m)), "mybookieag").startswith("model run 2026-10-16T22:30:00Z: pushed 2 of 2")

@@ -129,6 +129,14 @@ def main():
 
         # ---- 2. decide on an odds pull ----
         games = store.upcoming_games()
+
+        # ---- 1d. new model run? push the biggest disagreements with MyBookie once (free) ----
+        try:
+            m_note = M.notify_if_new(store, games, now, lambda t, m: ntfy.send(t, m, priority="low", tags="crystal_ball"), config.TARGET_BOOK)
+            if m_note:
+                notes.append(m_note)
+        except Exception as ex:
+            notes.append(f"model push FAILED: {ex}")
         remaining_known = store.get_state("credits:remaining")
         remaining = int(remaining_known) if remaining_known not in (None, "") else None
         reason = None
