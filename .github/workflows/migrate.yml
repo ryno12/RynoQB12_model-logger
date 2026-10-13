@@ -52,7 +52,8 @@ jobs:
           if not pw.isalnum(): notes.append("password has non-alphanumeric characters")
           if "." in user and ref: notes.append("username ref " + ("matches" if user.split(".", 1)[1] == ref else "DOES NOT MATCH") + " SUPABASE_URL project")
           shown = user.split(".")[0] + (".<ref>" if "." in user else " (NO PROJECT REF)")
-          print(f"user={shown} host={host} port={port} db={u.path.lstrip('/')} password_len={len(pw)} {'; '.join(notes)}", file=sys.stderr)
+          shown_host = re.sub(r"^db\.[^.]+\.supabase\.co$", "db.<ref>.supabase.co (DIRECT CONNECTION: IPv6-only, use the Session pooler URI)", host)
+          print(f"user={shown} host={shown_host} port={port} db={u.path.lstrip('/')} password_len={len(pw)} {'; '.join(notes)}", file=sys.stderr)
           netloc = f"{user}:{quote(pw, safe='')}@{host}" + (f":{port}" if port else "")
           print(urlunsplit((u.scheme, netloc, u.path, u.query, u.fragment)))
           PY
