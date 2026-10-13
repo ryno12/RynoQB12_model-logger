@@ -86,13 +86,14 @@ machine (Ryan is willing, but only if needed).
 1. ~~Scheduling~~ done 2026-10-12. ~~Injury trigger noise~~ done 2026-10-13. Bets table checked Oct 13: no duplicates,
    but the Seattle -1.5 bet was lost (expired from ntfy before the fix) and needs re-posting ("Seahawks -1.5 (-110) $5 A1").
    "Balt -4.5 (-110)" (row 4) is a real Week 6 bet (Ravens @ Browns, Sun Oct 18); it sat in needs_review because "balt"
-   was not an alias (added Oct 13, so the retry pass matches it on the next poll). Row 3 is its duplicate and rows 1 and 6
-   are tests: Ryan deletes those three. Bet messages must arrive before kickoff; the matcher only looks at upcoming games.
+   was not an alias (added Oct 13; the retry pass matched it). Duplicates and tests deleted Oct 13 (005).
+   Bet messages must arrive before kickoff; the matcher only looks at upcoming games.
 2. ~~Grading + CLV~~ built and live 2026-10-13 (see Grading above); 003 applied the same day, so the first poll after
    18:09 UTC graded Week 5: 14 finals, BUF +3.5 won (+$4.35, CLV 0), 35 alerts. 19 of those alerts were in-play
    lines (pre-fix) and are voided by `sql/004_void_inplay_alerts.sql`; the 16 real pre-game alerts went 7-9 (-$10.83),
-   8 of 16 moved toward consensus by close. The BAL -4.5 bet is Week 6. Ryan reposted the Seattle bet twice on Oct 13
-   (rows 7 and 8): delete 1, 3, 6 and 7.
+   8 of 16 moved toward consensus by close. The BAL -4.5 bet is Week 6. Bets table cleaned Oct 13 via
+   `sql/005_cleanup_bets.sql`: rows 4 (BAL -4.5), 5 (BUF +3.5, won) and 8 (SEA -1.5) remain. Ryan wants data fixes
+   like that done through migrate.yml by Claude, not by hand in the SQL editor.
 3. Weekly report: Tuesday markdown committed to the repo + short ntfy summary (record, units, CLV, alert stats, credits).
 4. Player adjustments table (only if Ryan has real opinions to enter), tracked and graded as a hypothesis.
 5. Model number in alerts / suggestion log: not yet, model has nothing to say at the 55% threshold.
