@@ -374,3 +374,20 @@ def test_grading_end_to_end(tmp_path, monkeypatch):
     a = store.tables["alerts"][0]
     assert a["result"] == "won" and a["profit"] == 4.55 and a["close_gap_points"] == 1.25 and a["moved_toward_consensus"] is False
     assert G.run(store, now) is None   # nothing left to grade; no second pass over the same games
+
+
+def test_truncated_city_names_rematch_on_retry(tmp_path):
+    """"Balt -4.5 (-110)" (2026-10-12) must parse, and a needs_review row with that text must be fixed by the retry pass
+    once the next Ravens game is in the games table."""
+    from logger.store import LocalStore
+    p = B.parse("Balt -4.5 (-110)")
+    assert p["teams"] == ["Baltimore Ravens"] and p["line"] == -4.5 and p["price"] == -110
+    assert B.parse("Cincy over 47")["teams"] == ["Cincinnati Bengals"] and B.parse("Pitt +3")["teams"] == ["Pittsburgh Steelers"]
+    assert B.parse("a wash of a game")["teams"] == ["Washington Commanders"]   # lower-case truncation is accepted; only the
+    store = LocalStore(tmp_path)                                               # 3-letter codes in UPPER_ONLY need capitals
+    now = datetime(2026, 10, 13, 12, 0, tzinfo=timezone.utc)
+    store.upsert("games", [{"id": "g_bal_cle", "home_team": "Cleveland Browns", "away_team": "Baltimore Ravens", "commence_time": "2026-10-18T17:00:00Z"}])
+    store.insert("bets", [{"id": 4, "ntfy_id": "x", "raw_text": "Balt -4.5 (-110)", "event_id": None, "status": "needs_review", "stake": 5.0}])
+    assert B.rematch(store, now, run_id=9) == 1
+    b = store.tables["bets"][0]
+    assert b["status"] == "open" and b["event_id"] == "g_bal_cle" and b["side"] == "Baltimore Ravens" and b["line"] == -4.5 and b["tag"] == "own"

@@ -43,7 +43,7 @@ live in the private sibling repo `~/Repos/RynoQB12_model` (read its CLAUDE.md to
   push, since Oct 13). `logger/bets.py` parses it, matches the game, links the alert, stores a `bets` row, confirms "Logged".
   Events whose kickoff has passed are dropped right after the odds pull (in-play lines never snapshot or alert).
 - Local dev: `DRY_RUN=1 ODDS_FIXTURE=tests/fixtures/odds_sample.json ESPN_FIXTURE=tests/fixtures/espn_sample.json
-  NTFY_TOPIC=t NTFY_FIXTURE=tests/fixtures/ntfy_sample.json python -m logger.run_poll`; tests: `DRY_RUN=1 pytest -q` (21 pass).
+  NTFY_TOPIC=t NTFY_FIXTURE=tests/fixtures/ntfy_sample.json python -m logger.run_poll`; tests: `DRY_RUN=1 pytest -q` (22 pass).
   The odds fixture's kickoffs are Oct 10-12 2026, so a dry run now reports "3 in-play events ignored" and pulls nothing;
   copy the fixture and shift `commence_time` into the future to exercise snapshots and alerts.
   No `python` on this Mac: use `uv run --python 3.12 --with pytest --with 'requests>=2.31' python -m pytest -q`.
@@ -75,12 +75,12 @@ machine (Ryan is willing, but only if needed).
 ## Next work, in the order Claude recommended and Ryan has not yet confirmed
 
 1. ~~Scheduling~~ done 2026-10-12. ~~Injury trigger noise~~ done 2026-10-13. Bets table checked Oct 13: no duplicates,
-   but the Seattle -1.5 bet was lost (expired from ntfy before the fix) and needs re-posting ("Seahawks -1.5 (-110) $5 A1");
-   two "Balt -4.5" rows and two test rows ("new topic works", "triggered") sit in needs_review awaiting Ryan's call.
-   Bet messages must name the team by city/nickname/abbreviation in `bets.py` TEAMS ("Balt" is not one) and arrive
-   before kickoff; the matcher only looks at upcoming games.
+   but the Seattle -1.5 bet was lost (expired from ntfy before the fix) and needs re-posting ("Seahawks -1.5 (-110) $5 A1").
+   "Balt -4.5 (-110)" (row 4) is a real Week 6 bet (Ravens @ Browns, Sun Oct 18); it sat in needs_review because "balt"
+   was not an alias (added Oct 13, so the retry pass matches it on the next poll). Row 3 is its duplicate and rows 1 and 6
+   are tests: Ryan deletes those three. Bet messages must arrive before kickoff; the matcher only looks at upcoming games.
 2. ~~Grading + CLV~~ built 2026-10-13 (see Grading above). Waiting on Ryan to apply `sql/003_grading.sql`; the first
-   poll after that grades all of Week 5 (games, 63 alerts, the BAL and BUF bets once the bets SQL cleanup is done).
+   poll after that grades all of Week 5 (games, 63 alerts, the BUF +3.5 bet). The BAL -4.5 bet is Week 6.
 3. Weekly report: Tuesday markdown committed to the repo + short ntfy summary (record, units, CLV, alert stats, credits).
 4. Player adjustments table (only if Ryan has real opinions to enter), tracked and graded as a hypothesis.
 5. Model number in alerts / suggestion log: not yet, model has nothing to say at the 55% threshold.

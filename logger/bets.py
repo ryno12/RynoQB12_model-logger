@@ -20,40 +20,41 @@ import requests
 from . import config, ntfy
 from .store import iso, now_utc, parse_ts
 
-# Odds API full names -> aliases (lower-case). City and nickname both work.
+# Odds API full names -> aliases (lower-case). City, nickname, abbreviation and common texting truncations
+# ("Balt", "Cincy", "Pitt"). Ryan's "Balt -4.5" on 2026-10-12 sat in needs_review because "balt" was missing.
 TEAMS = {
-    "Arizona Cardinals": ["arizona", "cardinals", "ari", "cards"],
+    "Arizona Cardinals": ["arizona", "cardinals", "ari", "ariz", "cards"],
     "Atlanta Falcons": ["atlanta", "falcons", "atl"],
-    "Baltimore Ravens": ["baltimore", "ravens", "bal"],
+    "Baltimore Ravens": ["baltimore", "ravens", "bal", "balt"],
     "Buffalo Bills": ["buffalo", "bills", "buf"],
     "Carolina Panthers": ["carolina", "panthers", "car"],
     "Chicago Bears": ["chicago", "bears", "chi"],
-    "Cincinnati Bengals": ["cincinnati", "bengals", "cin"],
-    "Cleveland Browns": ["cleveland", "browns", "cle"],
+    "Cincinnati Bengals": ["cincinnati", "bengals", "cin", "cincy", "cinci"],
+    "Cleveland Browns": ["cleveland", "browns", "cle", "clev"],
     "Dallas Cowboys": ["dallas", "cowboys", "dal"],
     "Denver Broncos": ["denver", "broncos", "den"],
     "Detroit Lions": ["detroit", "lions", "det"],
     "Green Bay Packers": ["green bay", "packers", "gb"],
     "Houston Texans": ["houston", "texans", "hou"],
     "Indianapolis Colts": ["indianapolis", "colts", "ind", "indy"],
-    "Jacksonville Jaguars": ["jacksonville", "jaguars", "jax", "jags"],
+    "Jacksonville Jaguars": ["jacksonville", "jaguars", "jax", "jac", "jags"],
     "Kansas City Chiefs": ["kansas city", "chiefs", "kc"],
     "Las Vegas Raiders": ["las vegas", "raiders", "lv"],
     "Los Angeles Chargers": ["chargers", "lac"],
     "Los Angeles Rams": ["rams", "lar"],
     "Miami Dolphins": ["miami", "dolphins", "mia", "fins"],
-    "Minnesota Vikings": ["minnesota", "vikings", "min", "vikes"],
+    "Minnesota Vikings": ["minnesota", "vikings", "min", "minn", "vikes"],
     "New England Patriots": ["new england", "patriots", "ne", "pats"],
-    "New Orleans Saints": ["new orleans", "saints", "no"],
+    "New Orleans Saints": ["new orleans", "saints", "no", "nola"],
     "New York Giants": ["giants", "nyg"],
     "New York Jets": ["jets", "nyj"],
     "Philadelphia Eagles": ["philadelphia", "eagles", "phi", "philly"],
-    "Pittsburgh Steelers": ["pittsburgh", "steelers", "pit"],
+    "Pittsburgh Steelers": ["pittsburgh", "steelers", "pit", "pitt"],
     "San Francisco 49ers": ["san francisco", "49ers", "niners", "sf"],
     "Seattle Seahawks": ["seattle", "seahawks", "sea", "hawks"],
     "Tampa Bay Buccaneers": ["tampa", "tampa bay", "buccaneers", "bucs", "tb"],
-    "Tennessee Titans": ["tennessee", "titans", "ten"],
-    "Washington Commanders": ["washington", "commanders", "was", "wsh"],
+    "Tennessee Titans": ["tennessee", "titans", "ten", "tenn"],
+    "Washington Commanders": ["washington", "commanders", "was", "wsh", "wash"],
 }
 # Abbreviations that are also ordinary words: only count them when written in capitals (NO, WAS, TEN ...).
 UPPER_ONLY = {"no", "was", "ten", "car", "min", "ne", "sea", "pit", "ind"}
