@@ -83,7 +83,9 @@ machine (Ryan is willing, but only if needed).
   response at 1000 rows whatever `limit=` says, `injury_items` had 1650, and the 650 unloaded rows looked new on every
   poll (11 "Out" triggers a poll, news pulls at the 6/day cap). Fixed Oct 13 with paged `SupabaseStore.select_all`.
   `injury_events` holds ~9000 junk rows from Oct 11-13; harmless, but ignore them in any trigger analysis.
-  config.py says the Odds API key is shared with a pick'em (~180/month); confirm with Ryan before budgeting.
+  The Odds API key IS shared with the pick'em (confirmed Oct 13: its sync.yml pulls odds every 4 hours, 1 credit each,
+  and our runs log shows 1-credit drops between our own pulls, 8 in 3 days). Nominal pick'em use is 180/month; actual
+  is ~3/day because GitHub throttles its hourly cron too. Budget for us: ~320/month, i.e. ~10/day.
 - Backtest (private repo): no edge vs the closing spread with public features, faint totals signal, model shrinks itself
   to ~50%. So the model does NOT yet put a number in alerts; the alerts are MyBookie-vs-consensus gaps only.
 
