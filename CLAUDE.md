@@ -29,13 +29,21 @@ live in the private sibling repo `~/Repos/RynoQB12_model` (read its CLAUDE.md to
   -> ntfy bet capture (free) -> decide on an odds pull (close / pre / scheduled / news / manual) -> snapshots, gaps, alerts.
 - `.github/workflows/dump.yml`: Tuesdays 12:00 UTC, Parquet backup of every table into `data/` (commits to the repo).
 - Storage is Supabase project `RynoQB12_Model` (free tier, RLS on, service key only in Actions). Schema: `sql/001_schema.sql`
-  (10 tables + `v_line_gaps`), `sql/002_bets.sql` (bets). Both already applied.
+  (10 tables + `v_line_gaps`), `sql/002_bets.sql` (bets), both applied; `sql/003_grading.sql` (score, profit, CLV and
+  alert follow-up columns) written 2026-10-13 and NOT yet applied: until Ryan runs it, every poll notes "grading FAILED".
+- Grading (`logger/grading.py`, free, every poll): games 3.5h past kickoff with no score -> ESPN scoreboard by Eastern
+  date (`logger/scores.py`) -> `games.home_score/away_score/espn_status/final_at`; open bets on those games -> won/lost/
+  push/void, `profit` ($), `result_units` (profit / UNIT_DOLLARS=5); closing quotes = last pre-kickoff `odds_snapshots`
+  row per book (`close_seen_at` says how close to kickoff); CLV vs consensus close (`clv_points`, `clv_cents`) and vs
+  MyBookie close (`clv_mb_*`); each alert graded as a $5 bet at its line (`alerts.result/profit`) with
+  `close_gap_points` and `moved_toward_consensus`. Sign conventions are in the module docstring. Games with no final
+  after 7 days are marked `unresolved` and left alone, so apply 003 within a week of the games you want graded.
 - ntfy.sh topic (secret) receives alerts; Ryan replies on the same topic to log a bet ("Seahawks -1.5 $5", or "A12" /
   "A12 10" to take alert 12 at its line for $5 / $10). Each push is titled "A<id> Line gap: ..." (row inserted before the
   push, since Oct 13). `logger/bets.py` parses it, matches the game, links the alert, stores a `bets` row, confirms "Logged".
   Events whose kickoff has passed are dropped right after the odds pull (in-play lines never snapshot or alert).
 - Local dev: `DRY_RUN=1 ODDS_FIXTURE=tests/fixtures/odds_sample.json ESPN_FIXTURE=tests/fixtures/espn_sample.json
-  NTFY_TOPIC=t NTFY_FIXTURE=tests/fixtures/ntfy_sample.json python -m logger.run_poll`; tests: `DRY_RUN=1 pytest -q` (15 pass).
+  NTFY_TOPIC=t NTFY_FIXTURE=tests/fixtures/ntfy_sample.json python -m logger.run_poll`; tests: `DRY_RUN=1 pytest -q` (21 pass).
   The odds fixture's kickoffs are Oct 10-12 2026, so a dry run now reports "3 in-play events ignored" and pulls nothing;
   copy the fixture and shift `commence_time` into the future to exercise snapshots and alerts.
   No `python` on this Mac: use `uv run --python 3.12 --with pytest --with 'requests>=2.31' python -m pytest -q`.
@@ -71,8 +79,8 @@ machine (Ryan is willing, but only if needed).
    two "Balt -4.5" rows and two test rows ("new topic works", "triggered") sit in needs_review awaiting Ryan's call.
    Bet messages must name the team by city/nickname/abbreviation in `bets.py` TEAMS ("Balt" is not one) and arrive
    before kickoff; the matcher only looks at upcoming games.
-2. Grading + CLV: ESPN scoreboard scores -> grade each `bets` row (won/lost/push, units), CLV vs MyBookie and consensus
-   close; alert follow-up (did MyBookie move toward consensus before kickoff?).
+2. ~~Grading + CLV~~ built 2026-10-13 (see Grading above). Waiting on Ryan to apply `sql/003_grading.sql`; the first
+   poll after that grades all of Week 5 (games, 63 alerts, the BAL and BUF bets once the bets SQL cleanup is done).
 3. Weekly report: Tuesday markdown committed to the repo + short ntfy summary (record, units, CLV, alert stats, credits).
 4. Player adjustments table (only if Ryan has real opinions to enter), tracked and graded as a hypothesis.
 5. Model number in alerts / suggestion log: not yet, model has nothing to say at the 55% threshold.

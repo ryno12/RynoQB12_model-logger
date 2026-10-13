@@ -107,6 +107,19 @@ class SupabaseStore:
         ids = ",".join(f'"{e}"' for e in event_ids)
         return self.select("odds_latest", {"select": "*", "event_id": f"in.({ids})"})
 
+    # -- grading
+    def games_awaiting_score(self, before):
+        return self.select("games", {"select": "*", "commence_time": f"lt.{iso(before)}", "final_at": "is.null", "order": "commence_time"})
+
+    def snapshots_for(self, event_id):
+        return self.select_all("odds_snapshots", {"select": "*", "event_id": f"eq.{event_id}"}, order="id")
+
+    def open_bets(self):
+        return self.select("bets", {"select": "*", "status": "eq.open"})
+
+    def ungraded_alerts(self, event_id):
+        return self.select("alerts", {"select": "*", "event_id": f"eq.{event_id}", "graded_at": "is.null"})
+
     def injury_items(self):
         # ~800 live items plus every cleared one, so well over the 1000-row cap. Anything not loaded here is seen as
         # "new" on every poll and fires bogus injury triggers (found 2026-10-13: 650 rows missing, 11 triggers a poll).
@@ -201,6 +214,19 @@ class LocalStore:
     def injury_items(self):
         return list(self.tables["injury_items"])
 
+    def games_awaiting_score(self, before):
+        b = iso(before)
+        return sorted([g for g in self.tables["games"] if g["commence_time"] < b and g.get("final_at") is None], key=lambda g: g["commence_time"])
+
+    def snapshots_for(self, event_id):
+        return [r for r in self.tables["odds_snapshots"] if r["event_id"] == event_id]
+
+    def open_bets(self):
+        return [b for b in self.tables["bets"] if b.get("status") == "open"]
+
+    def ungraded_alerts(self, event_id):
+        return [a for a in self.tables["alerts"] if a["event_id"] == event_id and a.get("graded_at") is None]
+
     def recent_alerts(self, since):
         s = iso(since)
         return [a for a in self.tables["alerts"] if a["sent_at"] >= s]
@@ -217,6 +243,8 @@ class LocalStore:
                 rows = [r for r in rows if r.get(col) is None]
             elif cond.startswith("gte."):
                 rows = [r for r in rows if r.get(col) is not None and str(r.get(col)) >= cond[4:]]
+            elif cond.startswith("lt."):
+                rows = [r for r in rows if r.get(col) is not None and str(r.get(col)) < cond[3:]]
         return rows
 
     def start_run(self, kind):

@@ -266,3 +266,111 @@ def test_push_carries_alert_number():
     assert title == "A12 Line gap: A @ B"
     assert msg.endswith("Log it: reply A12 (or A12 10 for $10)")
     assert B.parse("A12")["alert_id"] == 12 and B.parse("A12 10") == {**B.parse("A12 10"), "alert_id": 12, "stake": 10.0}
+
+
+# ---------------------------------------------------------------- grading + CLV
+from logger import grading as G, scores as S  # noqa: E402
+
+RAV = dict(home_team="Atlanta Falcons", away_team="Baltimore Ravens", home_score=23, away_score=30)
+
+
+def test_grade_side_spreads_and_totals():
+    gs = lambda m, side, line: G.grade_side(m, side, line, **RAV)  # noqa: E731
+    assert gs("spreads", "Baltimore Ravens", -4.5) == "won"
+    assert gs("spreads", "Baltimore Ravens", -7) == "push"
+    assert gs("spreads", "Baltimore Ravens", -7.5) == "lost"
+    assert gs("spreads", "Atlanta Falcons", 6.5) == "lost"
+    assert gs("spreads", "Atlanta Falcons", 7.5) == "won"
+    assert gs("totals", "Over", 52.5) == "won" and gs("totals", "Under", 52.5) == "lost" and gs("totals", "Over", 53) == "push"
+    assert gs("spreads", "Denver Broncos", -3) is None
+    assert G.grade_side("spreads", "Atlanta Falcons", -3, "Atlanta Falcons", "Baltimore Ravens", None, None) is None
+
+
+def test_profit_and_units():
+    assert G.profit("won", 5, -110) == 4.55 and G.profit("won", 5, -115) == 4.35 and G.profit("won", 5, 150) == 7.5
+    assert G.profit("lost", 5, -110) == -5.0 and G.profit("push", 5, -110) == 0.0 and G.profit("void", 5, None) == 0.0
+
+
+def test_closing_quotes_take_last_pre_kickoff_row():
+    kick = "2026-10-12T00:23:29Z"
+    snaps = [
+        {"bookmaker": "mybookieag", "market": "spreads", "outcome": "Baltimore Ravens", "point": -3.0, "price": -110, "seen_at": "2026-10-11T13:56:00Z"},
+        {"bookmaker": "mybookieag", "market": "spreads", "outcome": "Baltimore Ravens", "point": -3.5, "price": -110, "seen_at": "2026-10-11T22:24:00Z"},
+        {"bookmaker": "mybookieag", "market": "spreads", "outcome": "Baltimore Ravens", "point": -6.5, "price": -110, "seen_at": "2026-10-12T01:27:00Z"},  # in-play
+        {"bookmaker": "draftkings", "market": "spreads", "outcome": "Baltimore Ravens", "point": -4.5, "price": -108, "seen_at": "2026-10-11T22:24:00Z"},
+        {"bookmaker": "fanduel", "market": "spreads", "outcome": "Baltimore Ravens", "point": -5.0, "price": -110, "seen_at": "2026-10-11T22:24:00Z"},
+    ]
+    close = G.closing_quotes(snaps, kick)
+    assert close[("mybookieag", "spreads", "Baltimore Ravens")]["point"] == -3.5
+    pt, price, seen = G.consensus_close(close, "spreads", "Baltimore Ravens")
+    assert (pt, price) == (-4.75, -109) and seen.isoformat().startswith("2026-10-11T22:24")
+    assert G.consensus_close(close, "totals", "Over") == (None, None, None)
+
+
+def test_clv_sign_conventions():
+    assert G.clv("spreads", "Seattle Seahawks", -1.5, -110, -2.5, -110) == (1.0, None)     # took -1.5, closed -2.5: +1
+    assert G.clv("spreads", "Seattle Seahawks", -1.5, -110, -1.5, -120) == (0.0, 10)      # same point, 10 cents better
+    assert G.clv("spreads", "Seattle Seahawks", -3.5, -110, -2.5, -110) == (-1.0, None)
+    assert G.clv("totals", "Over", 44.5, -110, 46.0, -110) == (1.5, None)                # Over 44.5 closed 46
+    assert G.clv("totals", "Under", 44.5, -110, 46.0, -110) == (-1.5, None)
+    assert G.clv("totals", "Over", 44.5, -110, None, None) == (None, None)
+    assert G.gap_at("spreads", "Baltimore Ravens", -3.5, -4.5) == 1.0 and G.gap_at("totals", "Over", 41.5, 43.5) == 2.0
+
+
+def test_scoreboard_fixture_matches_odds_api_games(monkeypatch):
+    monkeypatch.setattr(config, "SCORES_FIXTURE", str(FIX / "espn_scoreboard_sample.json"))
+    assert S.et_date("2026-10-12T00:23:29Z") == "20261011"       # Sunday night game belongs to Sunday's slate
+    rows = S.normalize(S.fetch_scoreboard("20261011"))
+    assert len(rows) == 14 and all(r["status"] == "STATUS_FINAL" for r in rows)
+    g = {"home_team": "Atlanta Falcons", "away_team": "Baltimore Ravens", "commence_time": "2026-10-12T00:23:29Z"}
+    r = S.match_game(g, rows)
+    assert (r["home_score"], r["away_score"]) == (23, 30)
+    assert S.match_game({**g, "commence_time": "2026-10-19T00:23:29Z"}, rows) is None   # wrong week
+
+
+def test_grading_end_to_end(tmp_path, monkeypatch):
+    from logger.store import LocalStore
+    monkeypatch.setattr(config, "SCORES_FIXTURE", str(FIX / "espn_scoreboard_sample.json"))
+    store = LocalStore(tmp_path)
+    now = datetime(2026, 10, 13, 12, 0, tzinfo=timezone.utc)
+    store.upsert("games", [
+        {"id": "g_bal", "home_team": "Atlanta Falcons", "away_team": "Baltimore Ravens", "commence_time": "2026-10-12T00:23:29Z"},
+        {"id": "g_buf", "home_team": "Los Angeles Rams", "away_team": "Buffalo Bills", "commence_time": "2026-10-13T00:15:00Z"},
+        {"id": "g_sea", "home_team": "Denver Broncos", "away_team": "Seattle Seahawks", "commence_time": "2026-10-16T00:15:00Z"},   # future
+        {"id": "g_old", "home_team": "Nowhere", "away_team": "Nobody", "commence_time": "2026-10-01T00:00:00Z"},                 # never resolved
+    ])
+    def q(ev, bk, mk, oc, pt, pr, seen):
+        return {"event_id": ev, "bookmaker": bk, "market": mk, "outcome": oc, "point": pt, "price": pr, "seen_at": seen}
+    store.insert("odds_snapshots", [
+        q("g_bal", "mybookieag", "spreads", "Baltimore Ravens", -3.5, -110, "2026-10-11T22:24:00Z"),
+        q("g_bal", "draftkings", "spreads", "Baltimore Ravens", -4.5, -108, "2026-10-11T22:24:00Z"),
+        q("g_bal", "fanduel", "spreads", "Baltimore Ravens", -5.0, -110, "2026-10-11T22:24:00Z"),
+        q("g_bal", "mybookieag", "spreads", "Baltimore Ravens", -6.5, -110, "2026-10-12T01:27:00Z"),   # in-play, ignored
+        q("g_buf", "mybookieag", "spreads", "Buffalo Bills", 1.5, -125, "2026-10-13T00:00:00Z"),
+        q("g_buf", "draftkings", "spreads", "Buffalo Bills", 2.5, -110, "2026-10-13T00:00:00Z"),
+        q("g_buf", "fanduel", "spreads", "Buffalo Bills", 2.5, -112, "2026-10-13T00:00:00Z"),
+    ])
+    store.insert("bets", [
+        {"id": 4, "event_id": "g_bal", "market": "spreads", "side": "Baltimore Ravens", "line": -4.5, "price": -110, "stake": 5, "status": "open", "raw_text": "Balt -4.5 (-110)"},
+        {"id": 5, "event_id": "g_buf", "market": "spreads", "side": "Buffalo Bills", "line": 3.5, "price": -115, "stake": 5, "status": "open", "raw_text": "Buf +3.5 (-115)"},
+        {"id": 7, "event_id": "g_sea", "market": "spreads", "side": "Seattle Seahawks", "line": -1.5, "price": -110, "stake": 5, "status": "open", "raw_text": "Seahawks -1.5"},
+        {"id": 8, "event_id": None, "market": None, "side": None, "line": None, "price": None, "stake": 5, "status": "needs_review", "raw_text": "triggered"},
+    ])
+    store.insert("alerts", [{"id": 43, "event_id": "g_bal", "market": "spreads", "side": "Baltimore Ravens", "mb_point": -3.5, "mb_price": -110,
+                             "cons_point": -4.5, "gap_points": 1.0, "sent_at": "2026-10-12T07:42:00Z"}])
+    note = G.run(store, now)
+    assert note.startswith("graded: 2 finals (Baltimore Ravens 30 @ Atlanta Falcons 23; Buffalo Bills 37 @ Los Angeles Rams 34), 2 bets, 1 alerts")
+    assert "1 games unresolved" in note
+    bets = {b["id"]: b for b in store.tables["bets"]}
+    bal, buf = bets[4], bets[5]
+    assert bal["status"] == "won" and bal["profit"] == 4.55 and bal["result_units"] == 0.91
+    assert bal["close_mb_point"] == -3.5 and bal["close_cons_point"] == -4.75 and bal["clv_points"] == 0.25 and bal["clv_mb_points"] == -1.0
+    assert bal["close_seen_at"].startswith("2026-10-11T22:24")
+    assert buf["status"] == "won" and buf["profit"] == 4.35 and buf["clv_points"] == 1.0 and buf["clv_mb_points"] == 2.0
+    assert bets[7]["status"] == "open" and bets[8]["status"] == "needs_review"
+    games = {g["id"]: g for g in store.tables["games"]}
+    assert games["g_bal"]["home_score"] == 23 and games["g_bal"]["espn_status"] == "STATUS_FINAL"
+    assert games["g_sea"].get("final_at") is None and games["g_old"]["espn_status"] == "unresolved"
+    a = store.tables["alerts"][0]
+    assert a["result"] == "won" and a["profit"] == 4.55 and a["close_gap_points"] == 1.25 and a["moved_toward_consensus"] is False
+    assert G.run(store, now) is None   # nothing left to grade; no second pass over the same games

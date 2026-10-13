@@ -76,6 +76,13 @@ TRIGGER_STATUSES = {"Out", "Doubtful"}            # any position
 TRIGGER_ANY_CHANGE_POSITIONS = {"QB"}             # QB: any status change triggers
 ESPN_INJURIES_URL = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/injuries"
 
+# --- grading (free: ESPN scoreboard) ------------------------------------------------
+ESPN_SCOREBOARD_URL = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard"
+SCORES_FIXTURE = _env("SCORES_FIXTURE")           # saved scoreboard JSON (testing)
+GRADE_AFTER_HOURS = _float("GRADE_AFTER_HOURS", 3.5)   # look for a final this long after kickoff
+GRADE_GIVEUP_DAYS = _int("GRADE_GIVEUP_DAYS", 7)       # stop asking ESPN about a game after this; mark unresolved
+UNIT_DOLLARS = _float("UNIT_DOLLARS", 5.0)             # result_units = profit / this (the flat stake)
+
 # --- season ---------------------------------------------------------------------
 # Fallback if the seasons table is unreachable. Week 1 Thursday 2026-09-10 -> Tuesday before is 09-08.
 SEASONS_FALLBACK = {2026: date(2026, 9, 8)}

@@ -17,6 +17,7 @@ import traceback
 from datetime import timedelta
 
 from . import alerts as A
+from . import grading
 from . import bets as B
 from . import config, espn, ntfy
 from .oddsapi import fetch_odds
@@ -116,6 +117,14 @@ def main():
                 notes.append(f"bets: {n_bets} logged from ntfy")
         except Exception as ex:
             notes.append(f"bets FAILED: {ex}")
+
+        # ---- 1c. grading: finals from ESPN (free) -> bets, alerts, closing-line value ----
+        try:
+            g_note = grading.run(store, now)
+            if g_note:
+                notes.append(g_note)
+        except Exception as ex:
+            notes.append(f"grading FAILED: {ex}")
 
         # ---- 2. decide on an odds pull ----
         games = store.upcoming_games()
