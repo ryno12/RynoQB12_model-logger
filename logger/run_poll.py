@@ -20,7 +20,7 @@ from . import alerts as A
 from . import bets as B
 from . import config, espn, ntfy
 from .oddsapi import fetch_odds
-from .snapshots import games_rows, snapshot_rows
+from .snapshots import games_rows, snapshot_rows, split_started
 from .store import iso, make_store, now_utc, parse_ts
 
 
@@ -146,7 +146,9 @@ def main():
         # ---- 3. pull and process ----
         if reason:
             res = fetch_odds()
-            events = res.events
+            events, started = split_started(res.events, now)
+            if started:
+                notes.append(f"{len(started)} in-play events ignored")
             if res.credits_remaining is not None:
                 store.set_state("credits:remaining", res.credits_remaining)
             summary.update(pulled_odds=True, pull_reason=reason, events_seen=len(events),
@@ -187,17 +189,20 @@ def main():
             cands = A.find_gaps(upserts, games_by_id)
             recent = store.recent_alerts(now - timedelta(hours=config.ALERT_COOLDOWN_HOURS))
             cands = A.filter_cooldown(cands, recent)
-            sent_rows = []
+            # Insert first, then push: the push carries the row's id ("A12") so a reply can reference it.
+            pushes, sent_rows = [], []
             for c in sorted(cands, key=lambda c: (-c["gap_points"], -c["gap_cents"])):
                 title, msg = A.build_message(c, trig_txt)
-                ntfy.send(title, msg)
+                pushes.append((title, msg))
                 sent_rows.append({
                     "fingerprint": A.fingerprint(c), "event_id": c["event_id"], "market": c["market"], "side": c["side"],
                     "mb_point": c["mb_point"], "mb_price": c["mb_price"], "cons_point": c["cons_point"], "cons_price": c["cons_price"],
                     "cons_books": c["cons_books"], "gap_points": c["gap_points"], "gap_cents": c["gap_cents"], "key_cross": c["key_cross"],
                     "reason": trig_txt, "message": msg, "sent_at": iso(now_utc()), "run_id": run_id,
                 })
-            store.insert("alerts", sent_rows)
+            inserted = (store.insert("alerts", sent_rows, returning=True) or []) if sent_rows else []
+            for (title, msg), row in zip(pushes, inserted):
+                ntfy.send(*A.with_alert_id(title, msg, row["id"]))
             summary["alerts_sent"] = len(sent_rows)
             notes.append(f"odds: {len(events)} events, {len(snaps)} changed quotes, {len(sent_rows)} alerts, credits remaining {res.credits_remaining}")
         else:

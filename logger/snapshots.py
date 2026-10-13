@@ -13,6 +13,16 @@ def _num(x):
     return None if x is None else float(x)
 
 
+def split_started(events, now):
+    """(upcoming, started). The Odds API keeps returning events after kickoff with in-play lines. Those must never be
+    snapshotted, alerted on, or mistaken for closing lines (seen Oct 11-12 2026: 3 Ravens-Falcons alerts up to 7h in)."""
+    upcoming, started = [], []
+    for ev in events:
+        ct = parse_ts(ev.get("commence_time"))
+        (started if ct and ct <= now else upcoming).append(ev)
+    return upcoming, started
+
+
 def games_rows(events, seasons, existing_by_id):
     rows = []
     now = iso(now_utc())

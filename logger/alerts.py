@@ -135,5 +135,11 @@ def build_message(c, reason):
     return title, msg
 
 
+def with_alert_id(title, msg, alert_id):
+    """Add the alert's number so Ryan can reply "A<id>" (or "A<id> 10" for $10) to log a bet on it. Applied after the
+    row is inserted, because the id does not exist before that; the stored message is the version without it."""
+    return f"A{alert_id} {title}", f"{msg}\nLog it: reply A{alert_id} (or A{alert_id} 10 for $10)"
+
+
 def fingerprint(c):
     return f"{c['event_id']}|{c['market']}|{c['side']}|{c['mb_point']}|{c['cons_point']}|{c['mb_price']}"

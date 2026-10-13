@@ -30,10 +30,15 @@ live in the private sibling repo `~/Repos/RynoQB12_model` (read its CLAUDE.md to
 - `.github/workflows/dump.yml`: Tuesdays 12:00 UTC, Parquet backup of every table into `data/` (commits to the repo).
 - Storage is Supabase project `RynoQB12_Model` (free tier, RLS on, service key only in Actions). Schema: `sql/001_schema.sql`
   (10 tables + `v_line_gaps`), `sql/002_bets.sql` (bets). Both already applied.
-- ntfy.sh topic (secret) receives alerts; Ryan replies on the same topic to log a bet ("Seahawks -1.5 $5").
-  `logger/bets.py` parses it, matches the game, links the alert it followed, stores a `bets` row, confirms with "Logged".
+- ntfy.sh topic (secret) receives alerts; Ryan replies on the same topic to log a bet ("Seahawks -1.5 $5", or "A12" /
+  "A12 10" to take alert 12 at its line for $5 / $10). Each push is titled "A<id> Line gap: ..." (row inserted before the
+  push, since Oct 13). `logger/bets.py` parses it, matches the game, links the alert, stores a `bets` row, confirms "Logged".
+  Events whose kickoff has passed are dropped right after the odds pull (in-play lines never snapshot or alert).
 - Local dev: `DRY_RUN=1 ODDS_FIXTURE=tests/fixtures/odds_sample.json ESPN_FIXTURE=tests/fixtures/espn_sample.json
-  NTFY_TOPIC=t NTFY_FIXTURE=tests/fixtures/ntfy_sample.json python -m logger.run_poll`; tests: `DRY_RUN=1 pytest -q` (11 pass).
+  NTFY_TOPIC=t NTFY_FIXTURE=tests/fixtures/ntfy_sample.json python -m logger.run_poll`; tests: `DRY_RUN=1 pytest -q` (15 pass).
+  The odds fixture's kickoffs are Oct 10-12 2026, so a dry run now reports "3 in-play events ignored" and pulls nothing;
+  copy the fixture and shift `commence_time` into the future to exercise snapshots and alerts.
+  No `python` on this Mac: use `uv run --python 3.12 --with pytest --with 'requests>=2.31' python -m pytest -q`.
 
 ## Scheduling (fixed 2026-10-12)
 

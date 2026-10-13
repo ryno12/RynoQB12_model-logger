@@ -246,3 +246,23 @@ def test_select_all_pages_past_the_supabase_row_cap(monkeypatch):
     monkeypatch.setattr(store.s, "request", fake_request)
     assert store.injury_items() == rows
     assert [h["Range"] for _, h in calls] == ["0-999", "1000-1999"]
+
+
+def test_in_play_events_are_dropped():
+    from datetime import timedelta
+    from logger.snapshots import split_started
+    now = datetime(2026, 10, 12, 1, 0, tzinfo=timezone.utc)
+    evs = [{"id": "live", "commence_time": "2026-10-12T00:23:29Z"},      # Ravens @ Falcons, 37 minutes in
+           {"id": "soon", "commence_time": (now + timedelta(minutes=5)).isoformat()},
+           {"id": "at_kick", "commence_time": now.isoformat()},
+           {"id": "no_time", "commence_time": None}]
+    up, started = split_started(evs, now)
+    assert [e["id"] for e in up] == ["soon", "no_time"]
+    assert [e["id"] for e in started] == ["live", "at_kick"]
+
+
+def test_push_carries_alert_number():
+    title, msg = A.with_alert_id("Line gap: A @ B", "body\nKickoff: x", 12)
+    assert title == "A12 Line gap: A @ B"
+    assert msg.endswith("Log it: reply A12 (or A12 10 for $10)")
+    assert B.parse("A12")["alert_id"] == 12 and B.parse("A12 10") == {**B.parse("A12 10"), "alert_id": 12, "stake": 10.0}
