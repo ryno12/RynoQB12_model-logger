@@ -30,6 +30,7 @@ jobs:
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
           FILE: ${{ inputs.file }}
         run: |
           if [ -z "$SUPABASE_DB_URL" ]; then echo "SUPABASE_DB_URL secret is not set"; exit 1; fi
@@ -37,6 +38,8 @@ jobs:
           [ -f "$FILE" ] || { echo "no such file: $FILE"; exit 1; }
           # Describe the URI without revealing the password, and add the project ref to the pooler username if
           # it is missing (the pooler needs user postgres.<ref>; the ref comes from SUPABASE_URL).
+          # If the optional SUPABASE_DB_PASSWORD secret is set, psql takes the password from PGPASSWORD instead of
+          # the URI, which sidesteps URL-encoding of special characters.
           SUPABASE_DB_URL=$(python3 - <<'PY'
           import os, re, sys
           from urllib.parse import urlsplit, urlunsplit, quote, unquote
@@ -47,17 +50,24 @@ jobs:
           if host.endswith("pooler.supabase.com") and "." not in user and ref and ref != os.environ.get("SUPABASE_URL"):
               user = f"{user}.{ref}"; notes.append("added project ref to username")
           if "[" in pw or "YOUR-PASSWORD" in pw.upper(): notes.append("PASSWORD STILL CONTAINS THE [YOUR-PASSWORD] PLACEHOLDER")
-          if not pw: notes.append("PASSWORD IS EMPTY")
+          if os.environ.get("PGPASSWORD"): pw = ""; notes.append("using SUPABASE_DB_PASSWORD secret (len %d) instead of the URI password" % len(os.environ["PGPASSWORD"]))
+          if not pw and not os.environ.get("PGPASSWORD"): notes.append("PASSWORD IS EMPTY")
           if pw != pw.strip(): pw = pw.strip(); notes.append("stripped whitespace from password")
           if not pw.isalnum(): notes.append("password has non-alphanumeric characters")
           if "." in user and ref: notes.append("username ref " + ("matches" if user.split(".", 1)[1] == ref else "DOES NOT MATCH") + " SUPABASE_URL project")
           shown = user.split(".")[0] + (".<ref>" if "." in user else " (NO PROJECT REF)")
           shown_host = re.sub(r"^db\.[^.]+\.supabase\.co$", "db.<ref>.supabase.co (DIRECT CONNECTION: IPv6-only, use the Session pooler URI)", host)
           print(f"user={shown} host={shown_host} port={port} db={u.path.lstrip('/')} password_len={len(pw)} {'; '.join(notes)}", file=sys.stderr)
-          netloc = f"{user}:{quote(pw, safe='')}@{host}" + (f":{port}" if port else "")
+          netloc = (f"{user}:{quote(pw, safe='')}" if pw else user) + f"@{host}" + (f":{port}" if port else "")
           print(urlunsplit((u.scheme, netloc, u.path, u.query, u.fragment)))
           PY
           )
+          for attempt in 1 2 3; do
+            psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -q -c "select 1" >/dev/null && break
+            echo "connect attempt $attempt failed; waiting 60s (a reset password can take a minute to reach the pooler)"
+            [ "$attempt" = 3 ] && exit 2
+            sleep 60
+          done
           psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 --single-transaction -q -f "$FILE"
           psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -q -c \
             "insert into sync_state (key, value, updated_at) values ('migration:$FILE', now()::text, now()) on conflict (key) do update set value = excluded.value, updated_at = excluded.updated_at;"
