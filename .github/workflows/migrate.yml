@@ -50,8 +50,13 @@ jobs:
           if host.endswith("pooler.supabase.com") and "." not in user and ref and ref != os.environ.get("SUPABASE_URL"):
               user = f"{user}.{ref}"; notes.append("added project ref to username")
           if "[" in pw or "YOUR-PASSWORD" in pw.upper(): notes.append("PASSWORD STILL CONTAINS THE [YOUR-PASSWORD] PLACEHOLDER")
-          if os.environ.get("PGPASSWORD"): pw = ""; notes.append("using SUPABASE_DB_PASSWORD secret (len %d) instead of the URI password" % len(os.environ["PGPASSWORD"]))
-          if not pw and not os.environ.get("PGPASSWORD"): notes.append("PASSWORD IS EMPTY")
+          secret_pw = os.environ.get("PGPASSWORD", "")
+          if secret_pw.startswith("postgres"):   # a whole URI was pasted into SUPABASE_DB_PASSWORD: take its password, raw
+              m = re.match(r"^postgres(?:ql)?://[^:/]+:(.*)@[^@]+$", secret_pw)
+              secret_pw = m.group(1) if m else secret_pw
+              notes.append("SUPABASE_DB_PASSWORD looks like a full URI; using only its password part (len %d)" % len(secret_pw))
+          if secret_pw: pw = secret_pw; notes.append("using SUPABASE_DB_PASSWORD secret (len %d) instead of the URI password" % len(secret_pw))
+          if not pw: notes.append("PASSWORD IS EMPTY")
           if pw != pw.strip(): pw = pw.strip(); notes.append("stripped whitespace from password")
           if pw and not pw.isalnum(): notes.append("password has non-alphanumeric characters")
           if "." in user and ref: notes.append("username ref " + ("matches" if user.split(".", 1)[1] == ref else "DOES NOT MATCH") + " SUPABASE_URL project")
