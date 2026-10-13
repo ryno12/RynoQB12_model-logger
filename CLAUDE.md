@@ -28,9 +28,13 @@ live in the private sibling repo `~/Repos/RynoQB12_model` (read its CLAUDE.md to
   A manual run with `force_pull=1` polls once in its own concurrency group. Each poll: ESPN injuries (free)
   -> ntfy bet capture (free) -> decide on an odds pull (close / pre / scheduled / news / manual) -> snapshots, gaps, alerts.
 - `.github/workflows/dump.yml`: Tuesdays 12:00 UTC, Parquet backup of every table into `data/` (commits to the repo).
+  Dispatching it by hand (as ryno12) is the way to read any table from this Mac, which has no Supabase credentials.
+- `.github/workflows/migrate.yml`: `workflow_dispatch` with a `file` input under `sql/`; applies it with psql in one
+  transaction and records `migration:<file>` in `sync_state`. Needs the `SUPABASE_DB_URL` secret (Session-pooler URI;
+  direct connections are IPv6-only). Commit the SQL first, then dispatch. Claude cannot run DDL any other way.
 - Storage is Supabase project `RynoQB12_Model` (free tier, RLS on, service key only in Actions). Schema: `sql/001_schema.sql`
   (10 tables + `v_line_gaps`), `sql/002_bets.sql` (bets), both applied; `sql/003_grading.sql` (score, profit, CLV and
-  alert follow-up columns) written 2026-10-13 and NOT yet applied: until Ryan runs it, every poll notes "grading FAILED".
+  alert follow-up columns) written 2026-10-13; apply via migrate.yml. Until applied, every poll notes "grading FAILED".
 - Grading (`logger/grading.py`, free, every poll): games 3.5h past kickoff with no score -> ESPN scoreboard by Eastern
   date (`logger/scores.py`) -> `games.home_score/away_score/espn_status/final_at`; open bets on those games -> won/lost/
   push/void, `profit` ($), `result_units` (profit / UNIT_DOLLARS=5); closing quotes = last pre-kickoff `odds_snapshots`

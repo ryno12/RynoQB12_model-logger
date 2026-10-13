@@ -1,0 +1,40 @@
+name: Apply SQL migration
+
+# Runs one file under sql/ against the Supabase database with psql, in a single transaction.
+# Needs the SUPABASE_DB_URL secret: the "Session pooler" connection URI from the Supabase dashboard (Connect button).
+# The direct connection is IPv6-only on the free tier and GitHub runners have no IPv6, so it must be the pooler URI.
+# Each applied file is recorded in sync_state as migration:<file> = <timestamp>.
+
+on:
+  workflow_dispatch:
+    inputs:
+      file:
+        description: 'SQL file to apply (must be under sql/)'
+        required: true
+        default: 'sql/003_grading.sql'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: migrate
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply ${{ inputs.file }}
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          FILE: ${{ inputs.file }}
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ]; then echo "SUPABASE_DB_URL secret is not set"; exit 1; fi
+          case "$FILE" in sql/*.sql) ;; *) echo "refusing: $FILE is not a file under sql/"; exit 1 ;; esac
+          [ -f "$FILE" ] || { echo "no such file: $FILE"; exit 1; }
+          psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 --single-transaction -q -f "$FILE"
+          psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -q -c \
+            "insert into sync_state (key, value, updated_at) values ('migration:$FILE', now()::text, now()) on conflict (key) do update set value = excluded.value, updated_at = excluded.updated_at;"
+          echo "applied $FILE"
