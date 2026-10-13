@@ -248,14 +248,19 @@ def main(argv=None):
     ap.add_argument("--week", type=int, help="NFL week to report (default: the week that just ended)")
     ap.add_argument("--no-push", action="store_true", help="do not send the ntfy summary")
     ap.add_argument("--out", default="reports", help="output directory (default reports/)")
+    ap.add_argument("--force", action="store_true", help="rebuild and re-send even if this week's report already exists")
     a = ap.parse_args(argv)
     now = now_utc()
     data = load_dump(a.dump) if a.dump else load_store(make_store(), now - timedelta(days=8))
     season, week = report_week(now, data["seasons"])
     if a.week:
         week = a.week
-    md, title, msg = build(data, season, week, now)
     out = Path(a.out) / str(season) / f"week-{week:02d}.md"
+    if out.exists() and not a.force:
+        # The Tuesday cron can fire hours late and land after a manual dispatch; one report per week, not two.
+        print(f"{out} already exists; nothing to do (use --force to rebuild)")
+        return 0
+    md, title, msg = build(data, season, week, now)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(md)
     print(md)

@@ -448,3 +448,14 @@ def test_weekly_report_from_graded_store(tmp_path, monkeypatch):
     assert "3 polls, 1 with a failure; 2 odds pulls (news 1, scheduled 1); 4 credits used, **438 remaining**" in md
     assert "pre-kickoff pull: 0 of 2; with a close pull: 1 of 2" in md and "1x `espn FAILED: boom`" in md
     assert msg.startswith("Bets 1-1-0, -$0.45, CLV +0.25 | Season 1-1-0, bank $300 | Alerts 2-0-0, +$9.10, 0% to close, 1 in-play voided | Credits 438 (4 used), 3 polls, 1 failed")
+
+
+def test_own_pushes_are_not_parsed_as_bets():
+    """Numbered alert titles ("A12 Line gap: ...") and the weekly report must be skipped by bet capture. On Oct 13 the
+    report summary was parsed as a bet and answered with "Could not log"."""
+    assert B.is_system({"title": "A12 Line gap: Seattle Seahawks -1.5"})
+    assert B.is_system({"title": "Line gap: Seattle Seahawks -1.5"})
+    assert B.is_system({"title": "Week 5 report", "message": "Bets 1-0-0, +$4.35, CLV +0.00 | Season 1-0-0, bank $304"})
+    assert B.is_system({"title": "Logged"}) and B.is_system({"title": "Could not log"})
+    assert not B.is_system({"title": "", "message": "Seahawks -1.5 $5"})
+    assert not B.is_system({"message": "A12 10"})

@@ -30,7 +30,10 @@ live in the private sibling repo `~/Repos/RynoQB12_model` (read its CLAUDE.md to
 - `.github/workflows/dump.yml`: Tuesdays 12:00 UTC, Parquet backup of every table into `data/` (commits to the repo),
   then `logger/report.py` builds `reports/<season>/week-NN.md` for the week that just ended from that dump and pushes a
   one-line ntfy summary (bets record/$/CLV, season + bankroll + pause rules, alert record and moved-to-close share,
-  credits/polls/failures). Local: `python -m logger.report --dump data/dumps/<date> --no-push --week 5`.
+  credits/polls/failures). One report per week: it skips if `reports/<season>/week-NN.md` exists (`--force` to redo),
+  because the Tuesday cron fires hours late and can follow a manual dispatch (Oct 13: two reports, two "Could not
+  log" replies because bet capture did not know the report title; both fixed). Local: `python -m logger.report --dump
+  data/dumps/<date> --no-push --week 5`. Any new kind of push needs its title in `bets.is_system`.
   Dispatching dump.yml by hand (as ryno12) is the way to read any table from this Mac, which has no Supabase credentials.
 - `.github/workflows/migrate.yml`: `workflow_dispatch` with a `file` input under `sql/`; applies it with psql in one
   transaction and records `migration:<file>` in `sync_state`. Two ways in, either secret works: `SUPABASE_ACCESS_TOKEN`
