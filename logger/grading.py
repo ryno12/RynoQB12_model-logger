@@ -176,12 +176,18 @@ def grade_bets(store, games, now):
 
 
 def grade_alerts(store, games, now):
-    """Score every ungraded alert on the finalized games as a $5 flat bet, and record whether its gap closed."""
+    """Score every ungraded alert on the finalized games as a $5 flat bet, and record whether its gap closed.
+    Alerts sent at or after kickoff are voided (in-play lines are not pre-game suggestions)."""
     n = 0
     for g in games:
         for a in store.ungraded_alerts(g["id"]):
             upd = {"graded_at": iso(now)}
+            sent, kick = parse_ts(a.get("sent_at")), parse_ts(g.get("commence_time"))
             if g.get("espn_status") in scores.DEAD:
+                upd.update(result="void", profit=0)
+            elif sent and kick and sent >= kick:
+                # An in-play line (alerts fired after kickoff until the Oct 13 fix). Not a pre-game suggestion: void it
+                # rather than score it, so alert stats only count lines that could have been bet before the game.
                 upd.update(result="void", profit=0)
             else:
                 result = grade_side(a["market"], a["side"], a["mb_point"], g["home_team"], g["away_team"], g["home_score"], g["away_score"])

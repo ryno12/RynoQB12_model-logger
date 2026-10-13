@@ -357,9 +357,11 @@ def test_grading_end_to_end(tmp_path, monkeypatch):
         {"id": 8, "event_id": None, "market": None, "side": None, "line": None, "price": None, "stake": 5, "status": "needs_review", "raw_text": "triggered"},
     ])
     store.insert("alerts", [{"id": 43, "event_id": "g_bal", "market": "spreads", "side": "Baltimore Ravens", "mb_point": -3.5, "mb_price": -110,
-                             "cons_point": -4.5, "gap_points": 1.0, "sent_at": "2026-10-12T07:42:00Z"}])
+                             "cons_point": -4.5, "gap_points": 1.0, "sent_at": "2026-10-11T22:30:00Z"},
+                            {"id": 44, "event_id": "g_bal", "market": "spreads", "side": "Baltimore Ravens", "mb_point": -21.5, "mb_price": -110,
+                             "cons_point": -23.5, "gap_points": 2.0, "sent_at": "2026-10-12T02:30:00Z"}])   # sent in-play
     note = G.run(store, now)
-    assert note.startswith("graded: 2 finals (Baltimore Ravens 30 @ Atlanta Falcons 23; Buffalo Bills 37 @ Los Angeles Rams 34), 2 bets, 1 alerts")
+    assert note.startswith("graded: 2 finals (Baltimore Ravens 30 @ Atlanta Falcons 23; Buffalo Bills 37 @ Los Angeles Rams 34), 2 bets, 2 alerts")
     assert "1 games unresolved" in note
     bets = {b["id"]: b for b in store.tables["bets"]}
     bal, buf = bets[4], bets[5]
@@ -371,8 +373,9 @@ def test_grading_end_to_end(tmp_path, monkeypatch):
     games = {g["id"]: g for g in store.tables["games"]}
     assert games["g_bal"]["home_score"] == 23 and games["g_bal"]["espn_status"] == "STATUS_FINAL"
     assert games["g_sea"].get("final_at") is None and games["g_old"]["espn_status"] == "unresolved"
-    a = store.tables["alerts"][0]
+    a, inplay = store.tables["alerts"]
     assert a["result"] == "won" and a["profit"] == 4.55 and a["close_gap_points"] == 1.25 and a["moved_toward_consensus"] is False
+    assert inplay["result"] == "void" and inplay["profit"] == 0 and inplay["graded_at"]   # in-play line, not a pre-game suggestion
     assert G.run(store, now) is None   # nothing left to grade; no second pass over the same games
 
 

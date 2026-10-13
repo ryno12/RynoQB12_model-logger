@@ -43,7 +43,8 @@ live in the private sibling repo `~/Repos/RynoQB12_model` (read its CLAUDE.md to
   push/void, `profit` ($), `result_units` (profit / UNIT_DOLLARS=5); closing quotes = last pre-kickoff `odds_snapshots`
   row per book (`close_seen_at` says how close to kickoff); CLV vs consensus close (`clv_points`, `clv_cents`) and vs
   MyBookie close (`clv_mb_*`); each alert graded as a $5 bet at its line (`alerts.result/profit`) with
-  `close_gap_points` and `moved_toward_consensus`. Sign conventions are in the module docstring. Games with no final
+  `close_gap_points` and `moved_toward_consensus`; alerts sent at or after kickoff are voided (in-play lines).
+  Sign conventions are in the module docstring. Games with no final
   after 7 days are marked `unresolved` and left alone, so apply 003 within a week of the games you want graded.
 - ntfy.sh topic (secret) receives alerts; Ryan replies on the same topic to log a bet ("Seahawks -1.5 $5", or "A12" /
   "A12 10" to take alert 12 at its line for $5 / $10). Each push is titled "A<id> Line gap: ..." (row inserted before the
@@ -87,7 +88,10 @@ machine (Ryan is willing, but only if needed).
    was not an alias (added Oct 13, so the retry pass matches it on the next poll). Row 3 is its duplicate and rows 1 and 6
    are tests: Ryan deletes those three. Bet messages must arrive before kickoff; the matcher only looks at upcoming games.
 2. ~~Grading + CLV~~ built and live 2026-10-13 (see Grading above); 003 applied the same day, so the first poll after
-   16:50 UTC graded Week 5 (games, 63 alerts, the BUF +3.5 bet). The BAL -4.5 bet is Week 6.
+   18:09 UTC graded Week 5: 14 finals, BUF +3.5 won (+$4.35, CLV 0), 35 alerts. 19 of those alerts were in-play
+   lines (pre-fix) and are voided by `sql/004_void_inplay_alerts.sql`; the 16 real pre-game alerts went 7-9 (-$10.83),
+   8 of 16 moved toward consensus by close. The BAL -4.5 bet is Week 6. Ryan reposted the Seattle bet twice on Oct 13
+   (rows 7 and 8): delete 1, 3, 6 and 7.
 3. Weekly report: Tuesday markdown committed to the repo + short ntfy summary (record, units, CLV, alert stats, credits).
 4. Player adjustments table (only if Ryan has real opinions to enter), tracked and graded as a hypothesis.
 5. Model number in alerts / suggestion log: not yet, model has nothing to say at the 55% threshold.
