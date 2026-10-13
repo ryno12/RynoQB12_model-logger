@@ -104,7 +104,7 @@ machine (Ryan is willing, but only if needed).
 4. Player adjustments table (only if Ryan has real opinions to enter), tracked and graded as a hypothesis.
 5. Model number in alerts / suggestion log: not yet, model has nothing to say at the 55% threshold.
 6. Step 3: one-time $30 Odds API history month to test Monday openers vs close (Ryan OK'd the idea earlier).
-7. Cosmetic: repo description typo "consnsus".
+7. ~~Cosmetic: repo description typo~~ fixed 2026-10-13 (both repos).
 
 ## Working style Ryan asked for
 
