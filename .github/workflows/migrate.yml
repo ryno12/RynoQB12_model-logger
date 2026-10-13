@@ -53,7 +53,7 @@ jobs:
           if os.environ.get("PGPASSWORD"): pw = ""; notes.append("using SUPABASE_DB_PASSWORD secret (len %d) instead of the URI password" % len(os.environ["PGPASSWORD"]))
           if not pw and not os.environ.get("PGPASSWORD"): notes.append("PASSWORD IS EMPTY")
           if pw != pw.strip(): pw = pw.strip(); notes.append("stripped whitespace from password")
-          if not pw.isalnum(): notes.append("password has non-alphanumeric characters")
+          if pw and not pw.isalnum(): notes.append("password has non-alphanumeric characters")
           if "." in user and ref: notes.append("username ref " + ("matches" if user.split(".", 1)[1] == ref else "DOES NOT MATCH") + " SUPABASE_URL project")
           shown = user.split(".")[0] + (".<ref>" if "." in user else " (NO PROJECT REF)")
           shown_host = re.sub(r"^db\.[^.]+\.supabase\.co$", "db.<ref>.supabase.co (DIRECT CONNECTION: IPv6-only, use the Session pooler URI)", host)
