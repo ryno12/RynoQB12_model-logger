@@ -1,12 +1,13 @@
 # Week 5 report (2026)
 
-Games Oct 11 to Oct 12, 14 of 14 final. Generated 2026-10-13 18:25 UTC.
+Games Oct 11 to Oct 12, 14 of 14 final. Generated 2026-10-13 18:38 UTC.
 
 ## Bets
 
 - Week: **1-0-0**, +$4.35 (+0.87u), CLV +0.00 pts vs consensus close, +0.00 vs MyBookie close (1 of 1 with a close).
 - Season: **1-0-0**, +$4.35 (+0.87u), CLV +0.00 pts, bankroll **$304.35** of $300.
 - Pause rules: not triggered (stop at $180 or negative CLV after 75 graded).
+- 1 bet message(s) still unmatched (needs_review): #9 "Bets 1-0-0, +$4.35, CLV +0.00 | Season 1-0-0, bank $304 | Alerts 7-9-0, -$10.83, 50% to close, 19 in-play voided | Credits 431 (44 used), 130 polls, 13 failed"
 
 | # | Game | Bet | Price | Result | P/L | Close cons / MB | CLV pts | vs MB |
 |---|---|---|---|---|---|---|---|---|
@@ -22,7 +23,7 @@ Open: #4 Baltimore Ravens -4.5 (-110) Baltimore Ravens @ Cleveland Browns; #8 Se
 
 ## Logger (last 7 days)
 
-- 130 polls, 13 with a failure; 18 odds pulls (close 1, manual 1, news 13, pre 2, scheduled 1); 44 credits used, **431 remaining**.
+- 131 polls, 13 with a failure; 18 odds pulls (close 1, manual 1, news 13, pre 2, scheduled 1); 44 credits used, **431 remaining**.
 - Week 5 games with a pre-kickoff pull: 0 of 14; with a close pull: 0 of 14.
   - 10x `grading FAILED: Supabase GET games -> 400: {"code":"42703","details":null,"hint":null,"message":"column games.final_at d`
   - 2x `bets FAILED: 'id'`
