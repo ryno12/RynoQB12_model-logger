@@ -51,17 +51,21 @@ machine (Ryan is willing, but only if needed).
 - Bet capture crashed on Oct 11 (KeyError 'id' in match_alert, then a duplicate ntfy_id insert). Fixed in 99309f3. The
   Oct 12 17:01 UTC run (old code) logged "4 bets"; Ryan has not yet confirmed whether those are real or re-logs, so
   check the `bets` table for duplicates before grading.
-- Credit burn with real 10-minute polling: ~17/day (news pulls hit the 6/day cap every day, plus closes/pres/scheduled).
-  431 remaining on Oct 13. That is ~510/month, slightly over the 500 tier, and config.py says the key is shared with a
-  pick'em (~180/month). ESPN shows 8-13 "triggers" on nearly every poll, which looks like noise; worth inspecting the
-  `injury_items` diffs before touching NEWS_DAILY_CAP (cooldowns are frozen by the hard rules).
+- Credit burn Oct 10-13 was ~17/day (431 left on Oct 13), driven by bogus injury triggers: Supabase caps every
+  response at 1000 rows whatever `limit=` says, `injury_items` had 1650, and the 650 unloaded rows looked new on every
+  poll (11 "Out" triggers a poll, news pulls at the 6/day cap). Fixed Oct 13 with paged `SupabaseStore.select_all`.
+  `injury_events` holds ~9000 junk rows from Oct 11-13; harmless, but ignore them in any trigger analysis.
+  config.py says the Odds API key is shared with a pick'em (~180/month); confirm with Ryan before budgeting.
 - Backtest (private repo): no edge vs the closing spread with public features, faint totals signal, model shrinks itself
   to ~50%. So the model does NOT yet put a number in alerts; the alerts are MyBookie-vs-consensus gaps only.
 
 ## Next work, in the order Claude recommended and Ryan has not yet confirmed
 
-1. ~~Fix the scheduling problem~~ done 2026-10-12. Next: check the bets table for Oct 11-12 duplicates; inspect why
-   ESPN triggers fire every poll (credit burn).
+1. ~~Scheduling~~ done 2026-10-12. ~~Injury trigger noise~~ done 2026-10-13. Bets table checked Oct 13: no duplicates,
+   but the Seattle -1.5 bet was lost (expired from ntfy before the fix) and needs re-posting ("Seahawks -1.5 (-110) $5 A1");
+   two "Balt -4.5" rows and two test rows ("new topic works", "triggered") sit in needs_review awaiting Ryan's call.
+   Bet messages must name the team by city/nickname/abbreviation in `bets.py` TEAMS ("Balt" is not one) and arrive
+   before kickoff; the matcher only looks at upcoming games.
 2. Grading + CLV: ESPN scoreboard scores -> grade each `bets` row (won/lost/push, units), CLV vs MyBookie and consensus
    close; alert follow-up (did MyBookie move toward consensus before kickoff?).
 3. Weekly report: Tuesday markdown committed to the repo + short ntfy summary (record, units, CLV, alert stats, credits).

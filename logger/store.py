@@ -40,16 +40,33 @@ class SupabaseStore:
             headers["Authorization"] = f"Bearer {key}"
         self.s.headers.update(headers)
 
-    def _req(self, method, path, body=None, prefer=None, params=None):
-        headers = {"Prefer": prefer} if prefer else {}
+    def _req(self, method, path, body=None, prefer=None, params=None, headers=None):
+        headers = dict(headers or {})
+        if prefer:
+            headers["Prefer"] = prefer
         r = self.s.request(method, f"{self.url}/rest/v1/{path}", json=body, headers=headers, params=params, timeout=60)
         if r.status_code >= 300:
             raise RuntimeError(f"Supabase {method} {path} -> {r.status_code}: {r.text[:500]}")
         return r.json() if r.text else None
 
+    PAGE = 1000   # Supabase caps every response at its max-rows setting (1000 by default); a larger limit= is ignored
+
     # -- generic
     def select(self, table, params):
+        """One page. Only for reads that are known to be well under PAGE rows; otherwise use select_all."""
         return self._req("GET", table, params=params) or []
+
+    def select_all(self, table, params, order):
+        """Every matching row, fetched in PAGE-sized ranges. `order` must be a unique column so pages do not overlap."""
+        params = {**params, "order": order}
+        rows, start = [], 0
+        while True:
+            batch = self._req("GET", table, params=params,
+                              headers={"Range-Unit": "items", "Range": f"{start}-{start + self.PAGE - 1}"}) or []
+            rows.extend(batch)
+            if len(batch) < self.PAGE:
+                return rows
+            start += self.PAGE
 
     def upsert(self, table, rows, on_conflict=None):
         if not rows:
@@ -91,8 +108,9 @@ class SupabaseStore:
         return self.select("odds_latest", {"select": "*", "event_id": f"in.({ids})"})
 
     def injury_items(self):
-        # ESPN returns ~800 items; PostgREST default page is 1000, ask for more to be safe.
-        return self._req("GET", "injury_items", params={"select": "*", "limit": "5000"}) or []
+        # ~800 live items plus every cleared one, so well over the 1000-row cap. Anything not loaded here is seen as
+        # "new" on every poll and fires bogus injury triggers (found 2026-10-13: 650 rows missing, 11 triggers a poll).
+        return self.select_all("injury_items", {"select": "*"}, order="espn_item_id")
 
     def recent_alerts(self, since):
         return self.select("alerts", {"select": "fingerprint,event_id,market,side,gap_points,gap_cents,sent_at",

@@ -224,3 +224,25 @@ def test_bet_capture_survives_a_bad_message(tmp_path, monkeypatch):
     monkeypatch.setattr(store, "insert", real_insert)
     assert B.process(store, now, run_id=2) == 1               # only the failed one is (re)logged
     assert len(store.tables["bets"]) == 3 and store.get_state("ntfy:since") == "1791686600"
+
+
+def test_select_all_pages_past_the_supabase_row_cap(monkeypatch):
+    """Supabase ignores limit= above its max-rows (1000). injury_items had 1650 rows, the poller loaded 1000, and the
+    other 650 looked brand new on every poll (11 bogus injury triggers a poll, news pulls at the daily cap)."""
+    from logger.store import SupabaseStore
+    store = SupabaseStore(url="http://supabase.test", key="sb_secret_test")
+    rows = [{"espn_item_id": str(i)} for i in range(1650)]
+    calls = []
+
+    class Resp:
+        def __init__(self, body): self.status_code, self.text, self._b = 206, "x", body
+        def json(self): return self._b
+
+    def fake_request(method, url, json=None, headers=None, params=None, timeout=None):
+        calls.append((params, headers))
+        assert params["order"] == "espn_item_id"
+        lo, hi = map(int, headers["Range"].split("-"))
+        return Resp(rows[lo:hi + 1])
+    monkeypatch.setattr(store.s, "request", fake_request)
+    assert store.injury_items() == rows
+    assert [h["Range"] for _, h in calls] == ["0-999", "1000-1999"]

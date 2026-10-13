@@ -171,7 +171,7 @@ def match_game(store, parsed: dict, now):
     return cands[0] if cands else None
 
 
-def match_alert(store, parsed: dict, game):
+def match_alert(store, parsed: dict, game, now):
     """The alert this bet followed: by number if given, else the latest alert (48h) on the same game and side."""
     if parsed.get("alert_id"):
         rows = store.select("alerts", {"select": "*", "id": f"eq.{parsed['alert_id']}"})
@@ -181,7 +181,7 @@ def match_alert(store, parsed: dict, game):
     # own query: store.recent_alerts() returns a narrow column set without id / mb_point, which this needs
     rows = store.select("alerts", {"select": "id,event_id,market,side,mb_point,mb_price,sent_at",
                                    "event_id": f"eq.{game['id']}", "side": f"eq.{parsed['side']}",
-                                   "sent_at": f"gte.{iso(now_utc() - timedelta(hours=48))}"})
+                                   "sent_at": f"gte.{iso(now - timedelta(hours=48))}"})
     rows = [a for a in rows if a.get("id") is not None]
     return max(rows, key=lambda a: a["sent_at"]) if rows else None
 
@@ -242,7 +242,7 @@ def rematch(store, now, run_id) -> int:
         game = match_game(store, parsed, now)
         if not game:
             continue
-        alert = match_alert(store, parsed, game)
+        alert = match_alert(store, parsed, game, now)
         row = _row(parsed, game, alert)
         if row["status"] != "open":
             continue
@@ -282,7 +282,7 @@ def process(store, now, run_id) -> int:
                 continue
             parsed = parse(text)
             game = match_game(store, parsed, now)
-            alert = match_alert(store, parsed, game)
+            alert = match_alert(store, parsed, game, now)
             row = _row(parsed, game, alert)
             row.update({"ntfy_id": mid, "received_at": _received_at(m), "raw_text": text, "run_id": run_id})
             store.insert("bets", [row])

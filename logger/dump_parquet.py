@@ -10,21 +10,10 @@ import pyarrow.parquet as pq
 from .store import SupabaseStore
 
 TABLES = ["seasons", "games", "odds_latest", "odds_snapshots", "injury_items", "injury_events", "alerts", "runs", "sync_state", "heartbeat", "bets"]
-PAGE = 1000
 
 
 def fetch_all(store: SupabaseStore, table: str):
-    rows, start = [], 0
-    while True:
-        r = store.s.get(f"{store.url}/rest/v1/{table}", params={"select": "*", "order": _order(table)},
-                        headers={"Range-Unit": "items", "Range": f"{start}-{start + PAGE - 1}"}, timeout=120)
-        if r.status_code not in (200, 206):
-            raise RuntimeError(f"{table}: {r.status_code} {r.text[:300]}")
-        batch = r.json()
-        rows.extend(batch)
-        if len(batch) < PAGE:
-            return rows
-        start += PAGE
+    return store.select_all(table, {"select": "*"}, order=_order(table))
 
 
 def _order(table):
