@@ -1,4 +1,4 @@
-name: Weekly Parquet backup
+name: Weekly Parquet backup and report
 
 on:
   schedule:
@@ -24,10 +24,14 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: python -m logger.dump_parquet
-      - name: Commit backup
+      - name: Weekly report (markdown + ntfy summary)
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: python -m logger.report --dump "data/dumps/$(date -u +%F)"
+      - name: Commit backup and report
         run: |
           git config user.name "rynoqb12-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add data/dumps
-          git diff --cached --quiet || git commit -m "Weekly Parquet backup $(date -u +%F)"
+          git add data/dumps reports
+          git diff --cached --quiet || git commit -m "Weekly Parquet backup and report $(date -u +%F)"
           git push

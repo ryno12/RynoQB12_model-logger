@@ -247,6 +247,9 @@ class LocalStore:
                 rows = [r for r in rows if r.get(col) is not None and str(r.get(col)) < cond[3:]]
         return rows
 
+    def select_all(self, table, params, order=None):
+        return self.select(table, params)
+
     def start_run(self, kind):
         return self.insert("runs", [{"run_kind": kind, "started_at": iso(now_utc())}], returning=True)[0]["id"]
 

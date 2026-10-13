@@ -1,7 +1,7 @@
 """Unit checks for the pieces that must be right before the first live run. Run: pytest -q"""
 import json
 import os
-from datetime import datetime, timezone, date
+from datetime import datetime, timezone, date, timedelta
 from pathlib import Path
 
 os.environ.setdefault("DRY_RUN", "1")
@@ -394,3 +394,57 @@ def test_truncated_city_names_rematch_on_retry(tmp_path):
     assert B.rematch(store, now, run_id=9) == 1
     b = store.tables["bets"][0]
     assert b["status"] == "open" and b["event_id"] == "g_bal_cle" and b["side"] == "Baltimore Ravens" and b["line"] == -4.5 and b["tag"] == "own"
+
+
+def test_weekly_report_from_graded_store(tmp_path, monkeypatch):
+    """Build the Week 5 report from the end-to-end grading fixture: record, dollars, CLV, alert stats and credits."""
+    from logger import report as R
+    from logger.store import LocalStore
+    monkeypatch.setattr(config, "SCORES_FIXTURE", str(FIX / "espn_scoreboard_sample.json"))
+    store = LocalStore(tmp_path)
+    now = datetime(2026, 10, 13, 12, 0, tzinfo=timezone.utc)    # Tuesday of Week 6 -> report Week 5
+    store.upsert("games", [
+        {"id": "g_bal", "season": 2026, "week": 5, "home_team": "Atlanta Falcons", "away_team": "Baltimore Ravens", "commence_time": "2026-10-12T00:23:29Z", "close_pull_at": "2026-10-12T00:00:00Z"},
+        {"id": "g_buf", "season": 2026, "week": 5, "home_team": "Los Angeles Rams", "away_team": "Buffalo Bills", "commence_time": "2026-10-13T00:15:00Z"},
+        {"id": "g_sea", "season": 2026, "week": 6, "home_team": "Denver Broncos", "away_team": "Seattle Seahawks", "commence_time": "2026-10-16T00:15:00Z"},
+    ])
+    def q(ev, bk, mk, oc, pt, pr, seen):
+        return {"event_id": ev, "bookmaker": bk, "market": mk, "outcome": oc, "point": pt, "price": pr, "seen_at": seen}
+    store.insert("odds_snapshots", [
+        q("g_bal", "mybookieag", "spreads", "Baltimore Ravens", -3.5, -110, "2026-10-11T22:24:00Z"),
+        q("g_bal", "draftkings", "spreads", "Baltimore Ravens", -4.5, -108, "2026-10-11T22:24:00Z"),
+        q("g_bal", "fanduel", "spreads", "Baltimore Ravens", -5.0, -110, "2026-10-11T22:24:00Z"),
+    ])
+    store.insert("bets", [
+        {"id": 4, "event_id": "g_bal", "market": "spreads", "side": "Baltimore Ravens", "line": -4.5, "price": -110, "stake": 5, "status": "open", "raw_text": "Balt -4.5 (-110)"},
+        {"id": 5, "event_id": "g_buf", "market": "totals", "side": "Over", "line": 71.5, "price": -110, "stake": 5, "status": "open", "raw_text": "Buf over 71.5"},
+        {"id": 8, "event_id": "g_sea", "market": "spreads", "side": "Seattle Seahawks", "line": -1.5, "price": -110, "stake": 5, "status": "open", "raw_text": "Seahawks -1.5"},
+    ])
+    store.insert("alerts", [
+        {"id": 1, "fingerprint": "f1", "event_id": "g_bal", "market": "spreads", "side": "Baltimore Ravens", "mb_point": -3.5, "mb_price": -110, "cons_point": -4.5, "gap_points": 1.0, "sent_at": "2026-10-11T20:00:00Z"},
+        {"id": 2, "fingerprint": "f1", "event_id": "g_bal", "market": "spreads", "side": "Baltimore Ravens", "mb_point": -3.5, "mb_price": -110, "cons_point": -4.5, "gap_points": 1.0, "sent_at": "2026-10-11T23:30:00Z"},   # repeat
+        {"id": 3, "fingerprint": "f2", "event_id": "g_bal", "market": "spreads", "side": "Baltimore Ravens", "mb_point": -21.5, "mb_price": -110, "cons_point": -23.5, "gap_points": 2.0, "sent_at": "2026-10-12T02:30:00Z"},   # in-play
+        {"id": 4, "fingerprint": "f3", "event_id": "g_sea", "market": "spreads", "side": "Seattle Seahawks", "mb_point": -1.5, "mb_price": -110, "cons_point": -2.5, "gap_points": 1.0, "sent_at": "2026-10-12T20:00:00Z"},
+    ])
+    store.insert("runs", [
+        {"run_kind": "poll", "started_at": "2026-10-11T10:00:00Z", "pulled_odds": True, "pull_reason": "news", "credits_used": 60, "credits_remaining": 440, "notes": "ok"},
+        {"run_kind": "poll", "started_at": "2026-10-12T10:00:00Z", "pulled_odds": True, "pull_reason": "scheduled:monday_open", "credits_used": 62, "credits_remaining": 438, "notes": "ok"},
+        {"run_kind": "poll", "started_at": "2026-10-12T11:00:00Z", "pulled_odds": False, "pull_reason": "none", "notes": "espn FAILED: boom | no odds pull this run"},
+        {"run_kind": "poll", "started_at": "2026-10-01T11:00:00Z", "pulled_odds": True, "pull_reason": "news", "credits_remaining": 480, "notes": "old, outside the window"},
+    ])
+    G.run(store, now)
+    data = R.load_store(store, now - timedelta(days=8))
+    assert R.report_week(now, data["seasons"]) == (2026, 5)
+    md, title, msg = R.build(data, 2026, 5, now)
+    assert title == "Week 5 report"
+    assert "Week: **1-1-0**, -$0.45 (-0.09u), CLV +0.25 pts vs consensus close, -1.00 vs MyBookie close (1 of 2 with a close)" in md
+    assert "bankroll **$299.55**" in md and "Pause rules: not triggered" in md
+    assert "| 4 | Baltimore Ravens @ Atlanta Falcons | Baltimore Ravens -4.5 | -110 | won | +$4.55 | -4.75 / -3.5 | +0.25 | -1.00 |" in md
+    assert "| 5 | Buffalo Bills @ Los Angeles Rams | Over 71.5 | -110 | lost | -$5.00 | none | n/a | n/a |" in md
+    assert "Open: #8 Seattle Seahawks -1.5 (-110) Seattle Seahawks @ Denver Broncos" in md
+    assert "Week: 3 sent, 1 voided (in-play line), 0 ungraded. Pre-game alerts **2-0-0**, +$9.10; 0% moved toward consensus" in md
+    assert "2 distinct lines, 1 repeats" in md
+    assert "Season: 4 sent, 1 voided, pre-game **2-0-0**, +$9.10, 0% moved toward consensus (2 graded)" in md
+    assert "3 polls, 1 with a failure; 2 odds pulls (news 1, scheduled 1); 4 credits used, **438 remaining**" in md
+    assert "pre-kickoff pull: 0 of 2; with a close pull: 1 of 2" in md and "1x `espn FAILED: boom`" in md
+    assert msg.startswith("Bets 1-1-0, -$0.45, CLV +0.25 | Season 1-1-0, bank $300 | Alerts 2-0-0, +$9.10, 0% to close, 1 in-play voided | Credits 438 (4 used), 3 polls, 1 failed")

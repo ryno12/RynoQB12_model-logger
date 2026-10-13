@@ -27,8 +27,11 @@ live in the private sibling repo `~/Repos/RynoQB12_model` (read its CLAUDE.md to
   GitHub throttled it to ~1 run per 5 hours, and its queued runs show as "cancelled" when the successor replaces them.
   A manual run with `force_pull=1` polls once in its own concurrency group. Each poll: ESPN injuries (free)
   -> ntfy bet capture (free) -> decide on an odds pull (close / pre / scheduled / news / manual) -> snapshots, gaps, alerts.
-- `.github/workflows/dump.yml`: Tuesdays 12:00 UTC, Parquet backup of every table into `data/` (commits to the repo).
-  Dispatching it by hand (as ryno12) is the way to read any table from this Mac, which has no Supabase credentials.
+- `.github/workflows/dump.yml`: Tuesdays 12:00 UTC, Parquet backup of every table into `data/` (commits to the repo),
+  then `logger/report.py` builds `reports/<season>/week-NN.md` for the week that just ended from that dump and pushes a
+  one-line ntfy summary (bets record/$/CLV, season + bankroll + pause rules, alert record and moved-to-close share,
+  credits/polls/failures). Local: `python -m logger.report --dump data/dumps/<date> --no-push --week 5`.
+  Dispatching dump.yml by hand (as ryno12) is the way to read any table from this Mac, which has no Supabase credentials.
 - `.github/workflows/migrate.yml`: `workflow_dispatch` with a `file` input under `sql/`; applies it with psql in one
   transaction and records `migration:<file>` in `sync_state`. Two ways in, either secret works: `SUPABASE_ACCESS_TOKEN`
   (a Supabase personal access token; runs the file through the Management API database/query endpoint, no database
@@ -94,7 +97,7 @@ machine (Ryan is willing, but only if needed).
    8 of 16 moved toward consensus by close. The BAL -4.5 bet is Week 6. Bets table cleaned Oct 13 via
    `sql/005_cleanup_bets.sql`: rows 4 (BAL -4.5), 5 (BUF +3.5, won) and 8 (SEA -1.5) remain. Ryan wants data fixes
    like that done through migrate.yml by Claude, not by hand in the SQL editor.
-3. Weekly report: Tuesday markdown committed to the repo + short ntfy summary (record, units, CLV, alert stats, credits).
+3. ~~Weekly report~~ built 2026-10-13 (see dump.yml above); first one is `reports/2026/week-05.md`.
 4. Player adjustments table (only if Ryan has real opinions to enter), tracked and graded as a hypothesis.
 5. Model number in alerts / suggestion log: not yet, model has nothing to say at the 55% threshold.
 6. Step 3: one-time $30 Odds API history month to test Monday openers vs close (Ryan OK'd the idea earlier).
