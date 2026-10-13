@@ -36,8 +36,8 @@ live in the private sibling repo `~/Repos/RynoQB12_model` (read its CLAUDE.md to
   `SUPABASE_DB_PASSWORD`. Oct 13: the pooler rejected every password Ryan tried, so the token route was added.
   Commit the SQL first, then dispatch. Claude cannot run DDL any other way.
 - Storage is Supabase project `RynoQB12_Model` (free tier, RLS on, service key only in Actions). Schema: `sql/001_schema.sql`
-  (10 tables + `v_line_gaps`), `sql/002_bets.sql` (bets), both applied; `sql/003_grading.sql` (score, profit, CLV and
-  alert follow-up columns) written 2026-10-13; apply via migrate.yml. Until applied, every poll notes "grading FAILED".
+  (10 tables + `v_line_gaps`), `sql/002_bets.sql` (bets), `sql/003_grading.sql` (score, profit, CLV and alert
+  follow-up columns), all applied (003 via migrate.yml on 2026-10-13).
 - Grading (`logger/grading.py`, free, every poll): games 3.5h past kickoff with no score -> ESPN scoreboard by Eastern
   date (`logger/scores.py`) -> `games.home_score/away_score/espn_status/final_at`; open bets on those games -> won/lost/
   push/void, `profit` ($), `result_units` (profit / UNIT_DOLLARS=5); closing quotes = last pre-kickoff `odds_snapshots`
@@ -86,8 +86,8 @@ machine (Ryan is willing, but only if needed).
    "Balt -4.5 (-110)" (row 4) is a real Week 6 bet (Ravens @ Browns, Sun Oct 18); it sat in needs_review because "balt"
    was not an alias (added Oct 13, so the retry pass matches it on the next poll). Row 3 is its duplicate and rows 1 and 6
    are tests: Ryan deletes those three. Bet messages must arrive before kickoff; the matcher only looks at upcoming games.
-2. ~~Grading + CLV~~ built 2026-10-13 (see Grading above). Waiting on Ryan to apply `sql/003_grading.sql`; the first
-   poll after that grades all of Week 5 (games, 63 alerts, the BUF +3.5 bet). The BAL -4.5 bet is Week 6.
+2. ~~Grading + CLV~~ built and live 2026-10-13 (see Grading above); 003 applied the same day, so the first poll after
+   16:50 UTC graded Week 5 (games, 63 alerts, the BUF +3.5 bet). The BAL -4.5 bet is Week 6.
 3. Weekly report: Tuesday markdown committed to the repo + short ntfy summary (record, units, CLV, alert stats, credits).
 4. Player adjustments table (only if Ryan has real opinions to enter), tracked and graded as a hypothesis.
 5. Model number in alerts / suggestion log: not yet, model has nothing to say at the 55% threshold.
