@@ -126,5 +126,7 @@ machine (Ryan is willing, but only if needed).
 
 ## Working style Ryan asked for
 
+Times: Mountain time (America/Denver) everywhere Ryan reads them: chat, pushes, reports. He does not use UTC. Workflow
+crons stay in UTC but say the MT equivalent in a comment (MDT = UTC-6 until Nov 1 2026, then MST = UTC-7).
 Be objective, push back with evidence, ask clarifying questions, check and recheck, no assumptions. Info over UI.
 He bets $5 and accepts MyBookie's "chasing steam" risk (rule 33) at that stake.

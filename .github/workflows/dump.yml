@@ -2,7 +2,7 @@ name: Weekly Parquet backup and report
 
 on:
   schedule:
-    - cron: '0 12 * * 2'        # Tuesdays 12:00 UTC (after Monday night games settle)
+    - cron: '0 12 * * 2'        # Tuesdays 12:00 UTC = 6am MDT / 5am MST (after Monday night games settle)
   workflow_dispatch:
 
 permissions:

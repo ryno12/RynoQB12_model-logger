@@ -15,11 +15,14 @@ import sys
 from collections import Counter
 from datetime import timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
 from statistics import mean
 
 from . import config, ntfy
 from .store import iso, make_store, now_utc, parse_ts
 from .weeks import ny_date, season_week
+
+MT = ZoneInfo("America/Denver")   # Ryan reads times in Mountain time; never show UTC to him
 
 BANKROLL_START = 300.0
 PAUSE_BANKROLL = 180.0
@@ -200,7 +203,7 @@ def build(data, season, week, now):
     L = []
     L.append(f"# Week {week} report ({season})")
     L.append("")
-    L.append(f"Games {span}, {finals} of {len(wk_games)} final. Generated {now:%Y-%m-%d %H:%M} UTC.")
+    L.append(f"Games {span}, {finals} of {len(wk_games)} final. Generated {now.astimezone(MT):%a %b %d %-I:%M %p} MT.")
     L.append("")
     L.append("## Bets")
     L.append("")
