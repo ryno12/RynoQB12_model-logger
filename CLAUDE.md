@@ -73,7 +73,8 @@ view of any side at any number (edge = shrink * raw, p = Phi(edge / sigma)); eve
 unproven, and `alerts.model_point/model_edge/model_p` are stored. Grading fills the row's close (consensus and
 MyBookie), result and pick outcomes (`spread_vs_close`, `spread_vs_mb`, `total_vs_*`); the weekly report has a Model
 section. After each model run the poller pushes one "Model vs MyBookie" summary (biggest raw leans vs MyBookie's
-current numbers with the trusted edge; `sync_state model:notified` keeps it to once per run). Every run is also kept
+current numbers; wording is Ryan's "option 2" of 2026-10-14, see `model.disagreements`; trust shown once in the
+footer; `sync_state model:notified` keeps it to once per run). Every run is also kept
 in `model_lines_history` (sql/008) so Tuesday and Friday numbers can be compared. The model gets no say in bets until
 it clears the hypothesis bar in the model repo.
 

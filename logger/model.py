@@ -88,8 +88,23 @@ def _nick(team):
     return (team or "?").split()[-1]
 
 
+def _spread(x, nd=1):
+    """A spread for display: 'PK' at zero, else signed ('+3', '-2.7')."""
+    x = _f(x)
+    if x is None:
+        return "?"
+    if round(x, nd) == 0:
+        return "PK"
+    return f"{x:+.{nd}f}" if nd else f"{x:+g}"
+
+
 def disagreements(model_rows, games, quotes, target_book):
-    """[(abs raw lean, line of text)] for every model row with a MyBookie quote, biggest first."""
+    """[(abs raw lean, line of text)] for every model row with a MyBookie quote, biggest first.
+
+    Wording chosen by Ryan on 2026-10-14 ("option 2"):
+      Bears @ Falcons: MB has Falcons +3, model says Falcons -2.7. Leans Falcons, 5.7 pts.
+      Steelers @ Buccaneers: MB total 40.5, model says 46.0. Leans Over, 5.5 pts.
+    The pts figure is the distance between the two lines, not a predicted margin."""
     ml = index(model_rows)
     by_game = {}
     for q in quotes:
@@ -102,21 +117,27 @@ def disagreements(model_rows, games, quotes, target_book):
         if not row or not mb:
             continue
         home, away = g["home_team"], g["away_team"]
+        head = f"{_nick(away)} @ {_nick(home)}"
         q = mb.get(("spreads", home))
         if q and q.get("point") is not None:
             v = view(row, "spreads", home, q["point"], home)
             if v:
                 side, lean = (home, v["model_raw"]) if v["model_raw"] >= 0 else (away, -v["model_raw"])
-                edge = abs(v["model_edge"])
-                out.append((lean, f"{_nick(away)} @ {_nick(home)}: fair {_nick(home)} {-_f(row['fair_spread']):+.1f} vs MB {_f(q['point']):+g} "
-                                  f"-> {_nick(side)} by {lean:g} pts (trusted {edge:.1f})"))
+                mb_pt, fair = _f(q["point"]), -_f(row["fair_spread"])
+                # quote both lines from the same team's side (MyBookie's favourite, or the home team at a pick'em)
+                if mb_pt > 0:
+                    team, mb_pt, fair = away, -mb_pt, -fair
+                else:
+                    team = home
+                out.append((lean, f"{head}: MB has {_nick(team)} {_spread(mb_pt, 0)}, model says {_nick(team)} {_spread(fair)}. "
+                                  f"Leans {_nick(side)}, {lean:.1f} pts."))
         q = mb.get(("totals", "Over"))
         if q and q.get("point") is not None:
             v = view(row, "totals", "Over", q["point"], home)
             if v:
                 side, lean = ("Over", v["model_raw"]) if v["model_raw"] >= 0 else ("Under", -v["model_raw"])
-                out.append((lean, f"{_nick(away)} @ {_nick(home)}: fair total {_f(row['fair_total']):.1f} vs MB {_f(q['point']):g} "
-                                  f"-> {side} by {lean:g} pts (trusted {abs(v['model_edge']):.1f})"))
+                out.append((lean, f"{head}: MB total {_f(q['point']):g}, model says {_f(row['fair_total']):.1f}. "
+                                  f"Leans {side}, {lean:.1f} pts."))
     return sorted(out, key=lambda x: -x[0])
 
 
@@ -136,7 +157,9 @@ def notify_if_new(store, games, now, send, target_book, top=8):
         return f"model run {latest}: no MyBookie quotes to compare yet"
     shown = [t for _, t in lines[:top]]
     msg = "\n".join(shown) + (f"\n(+{len(lines) - top} more)" if len(lines) > top else "")
-    msg += "\nUnproven: trusted = shrink x lean. The weekly report grades these."
+    sh_s = max((_f(r.get("shrink_spread")) or 0.0) for r in fresh)
+    sh_t = max((_f(r.get("shrink_total")) or 0.0) for r in fresh)
+    msg += f"\nUnproven. Trust so far: spreads {sh_s:.0%}, totals {sh_t:.0%} of the gap. Graded in the Tuesday report."
     send(f"Model vs MyBookie: {len(fresh)} games", msg)
     store.set_state("model:notified", latest)
     return f"model run {latest}: pushed {len(shown)} of {len(lines)} disagreements"

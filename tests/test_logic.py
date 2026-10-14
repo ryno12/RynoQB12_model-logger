@@ -528,11 +528,12 @@ def test_model_vs_mybookie_push_once_per_run(tmp_path):
     title, msg = sent[0]
     assert title == "Model vs MyBookie: 2 games"
     lines = msg.split("\n")
-    assert lines[0] == "Jets @ Patriots: fair Patriots -12.4 vs MB -7.5 -> Patriots by 4.9 pts (trusted 0.0)"
-    assert lines[1] == "Seahawks @ Broncos: fair Broncos -0.0 vs MB +2.5 -> Broncos by 2.5 pts (trusted 0.0)"
-    assert lines[2] == "Jets @ Patriots: fair total 45.8 vs MB 43.5 -> Over by 2.3 pts (trusted 0.2)"
-    assert lines[3] == "Seahawks @ Broncos: fair total 42.0 vs MB 40.5 -> Over by 1.5 pts (trusted 0.1)"
-    assert lines[-1].startswith("Unproven")
+    assert lines[0] == "Jets @ Patriots: MB has Patriots -7.5, model says Patriots -12.4. Leans Patriots, 4.9 pts."
+    # Broncos are +2.5 at MyBookie, so both lines are quoted from the Seahawks' side; the model's 0.0 reads PK
+    assert lines[1] == "Seahawks @ Broncos: MB has Seahawks -2.5, model says Seahawks PK. Leans Broncos, 2.5 pts."
+    assert lines[2] == "Jets @ Patriots: MB total 43.5, model says 45.8. Leans Over, 2.3 pts."
+    assert lines[3] == "Seahawks @ Broncos: MB total 40.5, model says 42.0. Leans Over, 1.5 pts."
+    assert lines[-1] == "Unproven. Trust so far: spreads 0%, totals 7% of the gap. Graded in the Tuesday report."
     # same run again: nothing; a newer run: pushed again
     assert M.notify_if_new(store, games, None, lambda t, m: sent.append((t, m)), "mybookieag") is None and len(sent) == 1
     store.upsert("model_lines", [{"game_key": "2026-06-SEA-DEN", "computed_at": "2026-10-16T22:30:00Z", "fair_spread": -1.0}])
