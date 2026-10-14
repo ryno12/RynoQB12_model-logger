@@ -65,9 +65,10 @@ live in the private sibling repo `~/Repos/RynoQB12_model` (read its CLAUDE.md to
 
 ## Model lines (live since 2026-10-13, unproven)
 
-The private model repo publishes its fair spread (home margin, nflverse sign) and total for the coming week to
-`model_lines` (`rqb/live.py`, workflow `model_lines.yml`: Tue 14:00 and Fri 22:30 UTC, needs the two Supabase secrets
-on that repo). Each row carries `shrink_*` (0..1, how much of the model's disagreement with a line has historically
+The private model repo publishes its fair spread (home margin, nflverse sign) and total for the next two weeks to
+`model_lines` (`rqb/live.py`, workflow `model_lines.yml`: Mon 12:00, Tue 14:00 and Fri 22:30 UTC = 6am, 8am, 4:30pm
+MDT, needs the two Supabase secrets on that repo; two weeks since 2026-10-14 because books post next week's lines
+Sunday night and the logger already alerts on them). Each row carries `shrink_*` (0..1, how much of the model's disagreement with a line has historically
 been real; spreads ~0.00, totals ~0.07 as of Oct 13) and `sigma_*`. `logger/model.py` turns a row into the model's
 view of any side at any number (edge = shrink * raw, p = Phi(edge / sigma)); every alert ends with that line, labelled
 unproven, and `alerts.model_point/model_edge/model_p` are stored. Grading fills the row's close (consensus and
