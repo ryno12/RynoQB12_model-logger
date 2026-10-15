@@ -111,6 +111,25 @@ def _fmt_price(p):
     return f"({p:+d})" if p is not None else ""
 
 
+_REASON_TEXT = {
+    "close": "closing-line check before kickoff",
+    "pre": "pre-kickoff check (inactives window)",
+    "scheduled:monday_open": "scheduled Monday morning check",
+    "scheduled:friday_reports": "scheduled Friday afternoon check",
+    "manual": "manual check",
+}
+
+
+def why_checked(reason):
+    """The pull reason in plain words. A news reason names the injury change that paid for the pull; it applies to
+    every alert from that pull, whichever game it is (Ryan found 'Trigger: <player>' confusing, 2026-10-14)."""
+    if not reason:
+        return "?"
+    if reason.startswith("news: "):
+        return "injury news, " + reason[len("news: "):]
+    return _REASON_TEXT.get(reason, reason)
+
+
 def build_message(c, reason):
     ct = parse_ts(c.get("commence_time"))
     when = ct.astimezone(DENVER).strftime("%a %b %d %-I:%M %p MT") if ct else "?"
@@ -130,7 +149,7 @@ def build_message(c, reason):
     msg = (f"{line}\n"
            f"Edge: {', '.join(bits)} ({c['cons_books']} comparison books)\n"
            f"Kickoff: {when}\n"
-           f"Trigger: {reason}\n"
+           f"Checked because: {why_checked(reason)}\n"
            f"Captured: {now_utc().astimezone(DENVER).strftime('%-I:%M %p MT')}.\n"
            f"{c.get('model_text') or 'Model: no number for this game.'}")
     return title, msg

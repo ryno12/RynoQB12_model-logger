@@ -28,6 +28,11 @@ def test_week_math_matches_pickem_convention():
     assert season_week(datetime(2026, 10, 13, 0, 15, tzinfo=timezone.utc), seasons) == (2026, 5)
 
 
+def test_alert_reason_in_plain_words():
+    assert A.why_checked("news: Anthony Johnson Jr (CHI S) Questionable -> Out") == "injury news, Anthony Johnson Jr (CHI S) Questionable -> Out"
+    assert A.why_checked("pre") == "pre-kickoff check (inactives window)" and A.why_checked("scheduled:monday_open").startswith("scheduled Monday")
+
+
 def test_key_number_crossing():
     assert A._crosses_key(-2.5, -3.5)
     assert A._crosses_key(-3.0, -3.5)

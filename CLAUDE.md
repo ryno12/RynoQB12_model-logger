@@ -55,7 +55,8 @@ live in the private sibling repo `~/Repos/RynoQB12_model` (read its CLAUDE.md to
   after 7 days are marked `unresolved` and left alone, so apply 003 within a week of the games you want graded.
 - ntfy.sh topic (secret) receives alerts; Ryan replies on the same topic to log a bet ("Seahawks -1.5 $5", or "A12" /
   "A12 10" to take alert 12 at its line for $5 / $10). Each push is titled "A<id> Line gap: ..." (row inserted before the
-  push, since Oct 13). `logger/bets.py` parses it, matches the game, links the alert, stores a `bets` row, confirms "Logged".
+  push, since Oct 13). Its "Checked because:" line is the reason for the odds PULL (an injury change, a pre-kickoff or
+  closing check, a scheduled check), not for that game; one pull covers the whole board (`alerts.why_checked`). `logger/bets.py` parses it, matches the game, links the alert, stores a `bets` row, confirms "Logged".
   Events whose kickoff has passed are dropped right after the odds pull (in-play lines never snapshot or alert).
 - Local dev: `DRY_RUN=1 ODDS_FIXTURE=tests/fixtures/odds_sample.json ESPN_FIXTURE=tests/fixtures/espn_sample.json
   NTFY_TOPIC=t NTFY_FIXTURE=tests/fixtures/ntfy_sample.json python -m logger.run_poll`; tests: `DRY_RUN=1 pytest -q` (22 pass).
