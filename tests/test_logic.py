@@ -178,6 +178,7 @@ def test_bet_capture_end_to_end(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "NTFY_FIXTURE", str(FIX / "ntfy_sample.json"))
     store = LocalStore(tmp_path)
     now = datetime(2026, 10, 11, 3, 0, tzinfo=timezone.utc)
+    monkeypatch.setattr("logger.store.now_utc", lambda: now)     # the store's "upcoming" uses the clock; pin it to the fixture's day
     store.upsert("games", [
         {"id": "g_sea_den", "home_team": "Denver Broncos", "away_team": "Seattle Seahawks", "commence_time": "2026-10-16T00:15:00Z"},
         {"id": "g_sea_den_old", "home_team": "Seattle Seahawks", "away_team": "Denver Broncos", "commence_time": "2026-10-01T00:15:00Z"},
@@ -394,7 +395,7 @@ def test_grading_end_to_end(tmp_path, monkeypatch):
     assert G.run(store, now) is None   # nothing left to grade; no second pass over the same games
 
 
-def test_truncated_city_names_rematch_on_retry(tmp_path):
+def test_truncated_city_names_rematch_on_retry(tmp_path, monkeypatch):
     """"Balt -4.5 (-110)" (2026-10-12) must parse, and a needs_review row with that text must be fixed by the retry pass
     once the next Ravens game is in the games table."""
     from logger.store import LocalStore
@@ -404,6 +405,7 @@ def test_truncated_city_names_rematch_on_retry(tmp_path):
     assert B.parse("a wash of a game")["teams"] == ["Washington Commanders"]   # lower-case truncation is accepted; only the
     store = LocalStore(tmp_path)                                               # 3-letter codes in UPPER_ONLY need capitals
     now = datetime(2026, 10, 13, 12, 0, tzinfo=timezone.utc)
+    monkeypatch.setattr("logger.store.now_utc", lambda: now)
     store.upsert("games", [{"id": "g_bal_cle", "home_team": "Cleveland Browns", "away_team": "Baltimore Ravens", "commence_time": "2026-10-18T17:00:00Z"}])
     store.insert("bets", [{"id": 4, "ntfy_id": "x", "raw_text": "Balt -4.5 (-110)", "event_id": None, "status": "needs_review", "stake": 5.0}])
     assert B.rematch(store, now, run_id=9) == 1
@@ -475,6 +477,14 @@ def test_weekly_report_from_graded_store(tmp_path, monkeypatch):
     assert "3 polls, 1 with a failure; 2 odds pulls (news 1, scheduled 1); 4 credits used, **438 remaining**" in md
     assert "pre-kickoff pull: 0 of 2; with a close pull: 1 of 2" in md and "1x `espn FAILED: boom`" in md
     assert msg.startswith("Bets 1-1-0, -$0.45, CLV +0.25 | Season 1-1-0, bank $300 | Alerts 2-0-0, +$9.10, 0% to close, 1 in-play voided | Model spreads 0-1-0, totals 0-0-0 vs close | Credits 438 (4 used), 3 polls, 1 failed")
+
+
+def test_model_push_and_any_tagged_push_are_not_bets():
+    from logger import bets as B
+    msg = "Dolphins @ Jets: MB total 44.5, model says 47.9. Leans Over, 3.4 pts."
+    assert B.is_system({"title": "Model vs MyBookie: 14 games", "message": msg})
+    assert B.is_system({"title": "Something new", "message": msg, "tags": ["crystal_ball"]})
+    assert not B.is_system({"title": "", "message": "Dolphins over 44.5 $5"})
 
 
 def test_own_pushes_are_not_parsed_as_bets():

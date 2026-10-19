@@ -61,7 +61,11 @@ UPPER_ONLY = {"no", "was", "ten", "car", "min", "ne", "sea", "pit", "ind"}
 _ALIAS = sorted(((a, t) for t, al in TEAMS.items() for a in al), key=lambda x: -len(x[0]))
 _ALIAS_RE = {a: re.compile(rf"(?<![a-z0-9]){re.escape(a)}(?![a-z0-9])", re.I) for a, _ in _ALIAS}
 
-SYSTEM_TITLES = ("Line gap", "Logged", "Could not log", "RynoQB12", "Week ")
+SYSTEM_TITLES = ("Line gap", "Logged", "Could not log", "RynoQB12", "Week ", "Model vs MyBookie")
+# Every push the logger sends carries one of these ntfy tags (ntfy.send defaults to "football"); a message Ryan types in
+# the app has none. Checked as well as the titles so a new kind of push cannot be read as a bet (Oct 19: the model
+# summary's "Leans Over" line was logged as a Dolphins @ Jets Over bet because its title was not in SYSTEM_TITLES).
+SYSTEM_TAGS = {"football", "memo", "warning", "bar_chart", "crystal_ball"}
 SYSTEM_TITLE_RE = re.compile(r"^(A\d+ Line gap|Week \d+ report)")   # numbered alerts (since Oct 13) and the weekly report
 PRICE_RE = re.compile(r"(?<![\d.])([+-]1\d\d|[+-][2-9]\d\d)(?![\d.])")         # -110, +105, -120
 LINE_RE = re.compile(r"(?<![\w$.])([+-]?\d{1,2}(?:\.5)?)(?![\d%.])")           # -1.5, +3, 44.5
@@ -93,6 +97,8 @@ def fetch_messages(topic: str, since: str):
 def is_system(m) -> bool:
     """The logger's own pushes (alerts, confirmations, weekly report). Everything else on the topic is Ryan."""
     title = (m.get("title") or "")
+    if SYSTEM_TAGS & set(m.get("tags") or []):
+        return True
     return any(title.startswith(t) for t in SYSTEM_TITLES) or bool(SYSTEM_TITLE_RE.match(title))
 
 
