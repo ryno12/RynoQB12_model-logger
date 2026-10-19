@@ -158,6 +158,8 @@ def parse(text: str) -> dict:
             out["line"] = unsigned[0]                 # "over 44.5" handled above; "44.5 over" lands here
         elif signed:
             out["line"] = signed[0]                   # a spread must be signed: "Seahawks -1.5"
+        elif re.search(r"\b(pk|pick|pick'?em|pickem)\b", cleaned, re.I):
+            out["line"] = 0.0                         # "Dal pk (-104)": a pick'em (Oct 18 one took the alert's +1 instead)
     if "alert_id" in out and "stake" not in out and unsigned:
         out["stake"] = unsigned[0]                    # "A17 5" -> alert 17, $5
     if "market" not in out and teams:

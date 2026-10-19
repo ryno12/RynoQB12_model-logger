@@ -485,6 +485,8 @@ def test_model_push_and_any_tagged_push_are_not_bets():
     assert B.is_system({"title": "Model vs MyBookie: 14 games", "message": msg})
     assert B.is_system({"title": "Something new", "message": msg, "tags": ["crystal_ball"]})
     assert not B.is_system({"title": "", "message": "Dolphins over 44.5 $5"})
+    p = B.parse("Dal pk (-104) $5")
+    assert p["line"] == 0.0 and p["price"] == -104 and p["stake"] == 5.0 and p["side"] == "Dallas Cowboys"
 
 
 def test_own_pushes_are_not_parsed_as_bets():
