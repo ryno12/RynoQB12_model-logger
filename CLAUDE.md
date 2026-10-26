@@ -72,7 +72,9 @@ The private model repo publishes its fair spread (home margin, nflverse sign) an
 `model_lines` (`rqb/live.py`, workflow `model_lines.yml`: Mon 12:00, Tue 14:00 and Fri 22:30 UTC = 6am, 8am, 4:30pm
 MDT, needs the two Supabase secrets on that repo; two weeks since 2026-10-14 because books post next week's lines
 Sunday night and the logger already alerts on them). Each row carries `shrink_*` (0..1, how much of the model's disagreement with a line has historically
-been real; spreads ~0.00, totals ~0.07 as of Oct 13) and `sigma_*`. `logger/model.py` turns a row into the model's
+been real; v1 had spreads ~0.00, totals ~0.07; v2-market since Oct 26 has spreads ~0.16, totals ~0.35) and `sigma_*`.
+Since 2026-10-26 the model is v2-market: fair = the live consensus line (read from `odds_latest`) + the model's
+predicted adjustment, so its numbers sit within a point or two of the market (see the model repo's CLAUDE.md). `logger/model.py` turns a row into the model's
 view of any side at any number (edge = shrink * raw, p = Phi(edge / sigma)); every alert ends with that line, labelled
 unproven, and `alerts.model_point/model_edge/model_p` are stored. Grading fills the row's close (consensus and
 MyBookie), result and pick outcomes (`spread_vs_close`, `spread_vs_mb`, `total_vs_*`); the weekly report has a Model
