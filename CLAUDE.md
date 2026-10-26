@@ -60,6 +60,13 @@ live in the private sibling repo `~/Repos/RynoQB12_model` (read its CLAUDE.md to
   push, since Oct 13). Its "Checked because:" line is the reason for the odds PULL (an injury change, a pre-kickoff or
   closing check, a scheduled check), not for that game; one pull covers the whole board (`alerts.why_checked`). `logger/bets.py` parses it, matches the game, links the alert, stores a `bets` row, confirms "Logged".
   Events whose kickoff has passed are dropped right after the odds pull (in-play lines never snapshot or alert).
+- Price check (`logger/pricecheck.py`, since 2026-10-26): a message starting "check" ("check Chiefs -3.5 52" = 52 cents,
+  "check Bears over 44.5 -110") is answered, never stored as a bet: consensus fair chance at that number (juice
+  removed; spreads reweighted by real NFL margin frequencies, `KEY_W`, so 3 and 7 count), the verdict at the stated
+  price (GOOD/BAD at +/-2 points of chance), break-even price, MyBookie's current number on the same side and the
+  model line. Built for Underdog Predict (prediction-market contracts in cents; not in the Odds API, Underdog and
+  PrizePicks are there only as player-prop DFS). Fee per contract: `PRICE_CHECK_FEE_CENTS` (0 until Ryan reads it off
+  a slip). Uses stored quotes only, no credits; the reply says how old the market is.
 - Local dev: `DRY_RUN=1 ODDS_FIXTURE=tests/fixtures/odds_sample.json ESPN_FIXTURE=tests/fixtures/espn_sample.json
   NTFY_TOPIC=t NTFY_FIXTURE=tests/fixtures/ntfy_sample.json python -m logger.run_poll`; tests: `DRY_RUN=1 pytest -q` (22 pass).
   The odds fixture's kickoffs are Oct 10-12 2026, so a dry run now reports "3 in-play events ignored" and pulls nothing;

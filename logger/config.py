@@ -34,6 +34,7 @@ NTFY_FIRST_SINCE = _env("NTFY_FIRST_SINCE", "24h")   # how far back to read the 
 NTFY_FIXTURE = _env("NTFY_FIXTURE")                   # saved ntfy JSON messages (testing)
 DEFAULT_STAKE = _float("DEFAULT_STAKE", 5.0)
 DEFAULT_PRICE = _int("DEFAULT_PRICE", -110)
+PRICE_CHECK_FEE_CENTS = _float("PRICE_CHECK_FEE_CENTS", 0.0)   # per-contract fee added to a cents price (Underdog Predict); set once known
 
 # --- odds -------------------------------------------------------------------
 SPORT = "americanfootball_nfl"

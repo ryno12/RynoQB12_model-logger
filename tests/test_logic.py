@@ -555,3 +555,40 @@ def test_model_vs_mybookie_push_once_per_run(tmp_path):
     assert M.notify_if_new(store, games, None, lambda t, m: sent.append((t, m)), "mybookieag") is None and len(sent) == 1
     store.upsert("model_lines", [{"game_key": "2026-06-SEA-DEN", "computed_at": "2026-10-16T22:30:00Z", "fair_spread": -1.0}])
     assert M.notify_if_new(store, games, None, lambda t, m: sent.append((t, m)), "mybookieag").startswith("model run 2026-10-16T22:30:00Z: pushed 2 of 2")
+
+
+def test_price_check_parse_and_math(tmp_path, monkeypatch):
+    from logger import pricecheck as P
+    from logger.store import LocalStore
+    p = P.parse_check("check Chiefs -3.5 52")
+    assert p["side"] == "Kansas City Chiefs" and p["line"] == -3.5 and abs(p["cost"] - 0.52) < 1e-9
+    p = P.parse_check("Check bears over 44.5 48c")
+    assert p["market"] == "totals" and p["side"] == "Over" and p["line"] == 44.5 and abs(p["cost"] - 0.48) < 1e-9
+    p = P.parse_check("check bears over 44.5")                    # no price: 44.5 stays the total
+    assert p["line"] == 44.5 and p["cost"] is None
+    p = P.parse_check("check 49ers over 44.5")                    # "49ers" is a team, not a line
+    assert p["line"] == 44.5 and p["cost"] is None
+    p = P.parse_check("check Chiefs -3.5 -115")
+    assert abs(p["cost"] - 115 / 215) < 1e-9 and P.is_check("pc Chiefs -3") and not P.is_check("Chiefs -3.5 $5")
+
+    now = datetime(2026, 10, 28, 12, 0, tzinfo=timezone.utc)
+    monkeypatch.setattr("logger.store.now_utc", lambda: now)
+    store = LocalStore(tmp_path)
+    g = {"id": "g1", "week": 8, "home_team": "Denver Broncos", "away_team": "Kansas City Chiefs", "commence_time": "2026-11-01T20:25:00Z"}
+    store.upsert("games", [g])
+    q = lambda bk, oc, pt, pr: {"event_id": "g1", "bookmaker": bk, "market": "spreads", "outcome": oc, "point": pt, "price": pr, "seen_at": "2026-10-28T11:00:00Z"}
+    store.upsert("odds_latest", [q(b, "Kansas City Chiefs", -3.0, -110) for b in ("draftkings", "fanduel")] +
+                 [q(b, "Denver Broncos", 3.0, -110) for b in ("draftkings", "fanduel")] +
+                 [q("mybookieag", "Kansas City Chiefs", -2.5, -115), q("mybookieag", "Denver Broncos", 2.5, -105)])
+    quotes = store.latest_quotes(["g1"])
+    assert abs(P.fair_prob(quotes, g, "spreads", "Kansas City Chiefs", -3.0) - 0.5) < 1e-9
+    f25, f35 = P.fair_prob(quotes, g, "spreads", "Kansas City Chiefs", -2.5), P.fair_prob(quotes, g, "spreads", "Kansas City Chiefs", -3.5)
+    f45 = P.fair_prob(quotes, g, "spreads", "Kansas City Chiefs", -4.5)
+    assert f25 > 0.5 > f35 and (0.5 - f35) > 1.4 * (f35 - f45)      # the half point off 3 is worth more than 3.5 -> 4.5
+    assert 0.05 < (f25 - f35) < 0.12                                   # about the share of games landing on exactly 3
+    title, msg = P.check(store, "check Chiefs -3.5 40", now)
+    assert title == "Price check: Kansas City Chiefs -3.5" and msg.startswith("GOOD price: 40c")
+    assert "MyBookie: Kansas City Chiefs -2.5 (-115)" in msg and "MT" in msg
+    title, msg = P.check(store, "check Chiefs -3.5 52", now)
+    assert msg.startswith("BAD price") and "MyBookie is the better bet." in msg
+    assert B.is_system({"title": "Price check: Kansas City Chiefs -3.5", "tags": ["mag"]})

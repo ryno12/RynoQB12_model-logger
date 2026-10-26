@@ -61,11 +61,11 @@ UPPER_ONLY = {"no", "was", "ten", "car", "min", "ne", "sea", "pit", "ind"}
 _ALIAS = sorted(((a, t) for t, al in TEAMS.items() for a in al), key=lambda x: -len(x[0]))
 _ALIAS_RE = {a: re.compile(rf"(?<![a-z0-9]){re.escape(a)}(?![a-z0-9])", re.I) for a, _ in _ALIAS}
 
-SYSTEM_TITLES = ("Line gap", "Logged", "Could not log", "RynoQB12", "Week ", "Model vs MyBookie")
+SYSTEM_TITLES = ("Line gap", "Logged", "Could not log", "RynoQB12", "Week ", "Model vs MyBookie", "Price check")
 # Every push the logger sends carries one of these ntfy tags (ntfy.send defaults to "football"); a message Ryan types in
 # the app has none. Checked as well as the titles so a new kind of push cannot be read as a bet (Oct 19: the model
 # summary's "Leans Over" line was logged as a Dolphins @ Jets Over bet because its title was not in SYSTEM_TITLES).
-SYSTEM_TAGS = {"football", "memo", "warning", "bar_chart", "crystal_ball"}
+SYSTEM_TAGS = {"football", "memo", "warning", "bar_chart", "crystal_ball", "mag"}
 SYSTEM_TITLE_RE = re.compile(r"^(A\d+ Line gap|Week \d+ report)")   # numbered alerts (since Oct 13) and the weekly report
 PRICE_RE = re.compile(r"(?<![\d.])([+-]1\d\d|[+-][2-9]\d\d)(?![\d.])")         # -110, +105, -120
 LINE_RE = re.compile(r"(?<![\w$.])([+-]?\d{1,2}(?:\.5)?)(?![\d%.])")           # -1.5, +3, 44.5
@@ -288,6 +288,11 @@ def process(store, now, run_id) -> int:
             seen.append(mid); seen_set.add(mid)
             continue
         try:
+            from . import pricecheck   # "check Chiefs -3.5 52": answer, never store as a bet
+            if pricecheck.is_check(text):
+                ntfy.send(*pricecheck.check(store, text, now), priority="default", tags="mag")
+                seen.append(mid); seen_set.add(mid)
+                continue
             if store.select("bets", {"select": "id", "ntfy_id": f"eq.{mid}"}):   # stored on an earlier run that died before saving state
                 seen.append(mid); seen_set.add(mid)
                 continue
