@@ -44,7 +44,9 @@ live in the private sibling repo `~/Repos/RynoQB12_model` (read its CLAUDE.md to
   `SUPABASE_DB_PASSWORD`. Working since Oct 13 via the URI + `SUPABASE_DB_PASSWORD` (Ryan pasted the whole URI into
   that secret; the workflow takes the password out of it). The log prints the URI's shape with password and project
   ref masked. Commit the SQL first, then dispatch; the run log says "applied <file>". 003 and 004 applied this way.
-- Storage is Supabase project `RynoQB12_Model` (free tier, RLS on, service key only in Actions). Schema: `sql/001_schema.sql`
+- Storage is Supabase project `RynoQB12_Model` (free tier, service key only in Actions). RLS is on for every table
+  since 2026-11-02 (`sql/010_enable_rls_everywhere.sql`, after Supabase's advisor flagged model_lines/history,
+  created by 007/008 without it). Every new table's migration must end with `alter table <t> enable row level security;`. Schema: `sql/001_schema.sql`
   (10 tables + `v_line_gaps`), `sql/002_bets.sql` (bets), `sql/003_grading.sql` (score, profit, CLV and alert
   follow-up columns), `sql/004_void_inplay_alerts.sql` (data fix), all applied (003 and 004 via migrate.yml, 2026-10-13).
 - Grading (`logger/grading.py`, free, every poll): games 3.5h past kickoff with no score -> ESPN scoreboard by Eastern
