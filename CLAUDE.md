@@ -136,8 +136,10 @@ machine (Ryan is willing, but only if needed).
 4. Player adjustments table (only if Ryan has real opinions to enter), tracked and graded as a hypothesis.
 5. ~~Model number in alerts~~ live 2026-10-13 (see Model lines). Next: a model-vs-MyBookie alert type once shrink
    is non-zero for anything, the simulation layer for alternate-line pricing, then player-level features as hypotheses.
-6. ~~Step 3: $30 Odds API history month~~ done 2026-10-26 (key on the 20K plan until Ryan cancels; ~13.5k credits
-   left after the download, so `runs.credits_remaining` reads high this month). Results in the model repo's
+6. ~~Step 3: $30 Odds API history month~~ done 2026-10-26 (key on the 20K plan; ~13.5k credits
+   left after the download, so `runs.credits_remaining` reads high this month). Ryan cancelled the paid plan
+   2026-11-03; it should lapse to the free 500/month around Nov 26. Check the first dump after that: pulls succeeding
+   and credits near 500 means the same key carried over; failing pulls mean a new key for the `ODDS_API_KEY` secret. Results in the model repo's
    `reports/openers.md`: MyBookie's better numbers win late in the week (Sunday-morning spreads 0.5+ gap 56%) and
    lose at Monday's open; evidence for the midseason threshold review.
 7. ~~Cosmetic: repo description typo~~ fixed 2026-10-13 (both repos).
