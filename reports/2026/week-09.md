@@ -1,6 +1,6 @@
 # Week 9 report (2026)
 
-Games Nov 05 to Nov 09, 15 of 15 final. Generated Tue Nov 10 1:59 PM MT.
+Games Nov 05 to Nov 09, 15 of 15 final. Generated Tue Nov 10 2:41 PM MT.
 
 ## Bets
 
@@ -49,7 +49,20 @@ Games Nov 05 to Nov 09, 15 of 15 final. Generated Tue Nov 10 1:59 PM MT.
 | Tampa Bay Buccaneers @ Chicago Bears | -6.85 / -6.5 / -6 | +3 | lost | lost | 47.4 / 47.5 / 47.5 | 51 | lost | lost |
 | Buffalo Bills @ Minnesota Vikings | +3.46 / +3.25 / +3 | -17 | won | won | 48.82 / 45.5 / 45.5 | 29 | lost | lost |
 
+## Model CLV (does MyBookie move toward the model by kickoff?)
+
+Earliest pre-kickoff model number per game vs MyBookie's number at that moment; CLV = how far MyBookie's close moved toward the model (points). Win-loss needs ~1,000 picks to mean anything; this needs ~80 games.
+
+| Market, gap | This week: games, CLV | Season: games, CLV (se) | Toward / away |
+|---|---|---|---|
+| totals 1+ pts | 11, +0.55 | 19, +0.55 (0.43) | 42% / 32% |
+| totals 2+ pts | 2, -1.25 | 4, -0.88 (0.66) | 25% / 75% |
+| spreads 1+ pts | 3, +0.50 | 10, +0.05 (0.47) | 50% / 30% |
+| spreads 2+ pts | 1, +0.50 | 3, +1.00 (0.76) | 67% / 0% |
+
+- **L01** (pre-registered 2026-11-10: totals 1+ pts off MyBookie, Week 10 on; at 80 games adopt if CLV >= +0.30 and z >= 1.645, drop if <= 0): 0 games, CLV n/a. **watching: 0 of 80 games**.
+
 ## Logger (last 7 days)
 
-- 1024 polls, 0 with a failure; 58 odds pulls (close 7, news 42, pre 7, scheduled 2); 137 credits used, **294 remaining**.
+- 1019 polls, 0 with a failure; 58 odds pulls (close 7, news 42, pre 7, scheduled 2); 137 credits used, **294 remaining**.
 - Week 9 games with a pre-kickoff pull: 15 of 15; with a close pull: 15 of 15.

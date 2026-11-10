@@ -104,7 +104,10 @@ in `model_lines_history` (sql/008) so Tuesday and Friday numbers can be compared
   consensus now, so a stale anchor after injury news cannot pose as an edge), takes the model chance at MyBookie's
   number and price and pushes when it beats break-even by `MODEL_EDGE_MIN` (0.02); once per MyBookie number
   (`sync_state model_edge:*`). With shrink ~0.17/0.34 it needs ~8.5 raw pts on a spread or ~4.4 on a total at -110,
-  so it is rare until the model earns trust; on the Nov 10 board nothing qualified (best: HOU@CLE Under 39.5, +1.6). The model gets no say in bets until
+  so it is rare until the model earns trust; on the Nov 10 board nothing qualified (best: HOU@CLE Under 39.5, +1.6).
+  Trust is earned through CLV, not win-loss: the Tuesday report's "Model CLV" section (`logger/clvtrack.py`) tracks
+  whether MyBookie moves toward the model by kickoff, and pre-registered L01 (model repo CLAUDE.md) decides at 80
+  Week-10-on totals games whether the Model edge push starts firing on totals 1+ pts off MyBookie. The model gets no say in bets until
 it clears the hypothesis bar in the model repo.
 
 ## Scheduling (fixed 2026-10-12)

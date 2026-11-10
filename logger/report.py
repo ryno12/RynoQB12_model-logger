@@ -18,6 +18,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 from statistics import mean
 
+from . import clvtrack as CT
 from . import config, ntfy
 from .store import iso, make_store, now_utc, parse_ts
 from .weeks import ny_date, season_week
@@ -73,7 +74,14 @@ def load_store(store, since):
         model_lines = store.select_all("model_lines", {"select": "*"}, order="game_key")
     except Exception:
         model_lines = []
-    return dict(games=games, bets=bets, alerts=alerts, runs=runs, model_lines=model_lines, seasons=store.seasons())
+    try:
+        history = store.select_all("model_lines_history", {"select": "*"}, order="id")
+        mb_snaps = store.select_all("odds_snapshots", {"select": "event_id,bookmaker,market,outcome,point,seen_at",
+                                                       "bookmaker": f"eq.{config.TARGET_BOOK}"}, order="id")
+    except Exception:
+        history, mb_snaps = [], []
+    return dict(games=games, bets=bets, alerts=alerts, runs=runs, model_lines=model_lines, seasons=store.seasons(),
+                model_lines_history=history, mb_snaps=mb_snaps)
 
 
 def load_dump(d):
@@ -82,8 +90,12 @@ def load_dump(d):
     t = {n: pq.read_table(Path(d) / f"{n}.parquet").to_pylist() for n in ["games", "bets", "alerts", "runs", "seasons"]}
     ml = Path(d) / "model_lines.parquet"
     t["model_lines"] = pq.read_table(ml).to_pylist() if ml.exists() else []
+    mh, sn = Path(d) / "model_lines_history.parquet", Path(d) / "odds_snapshots.parquet"
+    t["model_lines_history"] = pq.read_table(mh).to_pylist() if mh.exists() else []
+    t["mb_snaps"] = pq.read_table(sn, columns=["event_id", "bookmaker", "market", "outcome", "point", "seen_at"],
+                                  filters=[("bookmaker", "=", config.TARGET_BOOK)]).to_pylist() if sn.exists() else []
     t["seasons"] = {int(r["year"]): date.fromisoformat(str(r["week1_tuesday"])) for r in t["seasons"]} or dict(config.SEASONS_FALLBACK)
-    for rows in (t["games"], t["bets"], t["alerts"], t["runs"], t["model_lines"]):
+    for rows in (t["games"], t["bets"], t["alerts"], t["runs"], t["model_lines"], t["model_lines_history"], t["mb_snaps"]):
         for r in rows:
             for k, v in r.items():
                 if hasattr(v, "isoformat"):
@@ -266,6 +278,29 @@ def build(data, season, week, now):
             L.append(f"| {m['away_team']} @ {m['home_team']} | {hl} | {_signed(_f(m.get('result_margin')), 0)} | {m.get('spread_vs_close') or '-'} | {m.get('spread_vs_mb') or '-'} | "
                      f"{tl} | {'n/a' if _f(m.get('result_total')) is None else f'{_f(m.get('result_total')):g}'} | {m.get('total_vs_close') or '-'} | {m.get('total_vs_mb') or '-'} |")
     L.append("")
+    L.append("## Model CLV (does MyBookie move toward the model by kickoff?)")
+    L.append("")
+    cr = CT.per_game(data.get("model_lines_history") or [], data["games"], data.get("mb_snaps") or [])
+    l01, l01_verdict = CT.l01_status(cr)
+    if not cr:
+        L.append("- No model history or MyBookie snapshots in this data.")
+    else:
+        L.append("Earliest pre-kickoff model number per game vs MyBookie's number at that moment; CLV = how far MyBookie's close "
+                 "moved toward the model (points). Win-loss needs ~1,000 picks to mean anything; this needs ~80 games.")
+        L.append("")
+        L.append("| Market, gap | This week: games, CLV | Season: games, CLV (se) | Toward / away |")
+        L.append("|---|---|---|---|")
+        for mk, lo in (("totals", 1), ("totals", 2), ("spreads", 1), ("spreads", 2)):
+            sel = [r for r in cr if r["market"] == mk and abs(r["gap"]) >= lo and r["season"] == season]
+            w_, s_ = CT.summary([r for r in sel if r["week"] == week]), CT.summary(sel)
+            fm = lambda s: "0" if not s["n"] else f"{s['n']}, {_signed(s['mean'])}"
+            L.append(f"| {mk} {lo}+ pts | {fm(w_)} | {fm(s_)}{'' if s_['se'] is None else f' ({s_['se']:.2f})'} | "
+                     f"{'n/a' if s_['toward'] is None else f'{s_['toward']:.0%} / {s_['away']:.0%}'} |")
+        L.append("")
+        L.append(f"- **L01** (pre-registered 2026-11-10: totals 1+ pts off MyBookie, Week 10 on; at 80 games adopt if CLV >= +0.30 "
+                 f"and z >= 1.645, drop if <= 0): {l01['n']} games, CLV {_signed(l01['mean'])}"
+                 f"{'' if l01['z'] is None else f', z {l01['z']:.2f}'}. **{l01_verdict}**.")
+    L.append("")
     L.append("## Logger (last 7 days)")
     L.append("")
     L.append(f"- {rs['polls']} polls, {rs['failed']} with a failure; {rs['pulls']} odds pulls "
@@ -283,6 +318,7 @@ def build(data, season, week, now):
            f" | Alerts {aw['record']}, {_money(aw['profit'])}, "
            f"{'n/a' if aw['moved'] is None else f'{aw['moved']:.0%}'} to close, {aw['void']} in-play voided"
            + (f" | Model spreads {mw['sp_close']}, totals {mw['tot_close']} vs close" if mw["graded"] else "") +
+           (f" | L01 {l01['n']}/80, CLV {_signed(l01['mean'])}" if cr else "") +
            f" | Credits {'n/a' if rs['remaining'] is None else int(rs['remaining'])} ({rs['used']:.0f} used), {rs['polls']} polls, {rs['failed']} failed")
     return md, title, msg
 

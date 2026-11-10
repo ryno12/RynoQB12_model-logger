@@ -50,3 +50,21 @@ def test_model_edge_reanchors_to_current_consensus():
 def test_model_edge_none_when_small():
     found, _ = _edge_fixture(mb_home_pt=-3, cons_home_pt=-3, adj_spread=0.5)
     assert found == []
+
+
+def test_clvtrack_signs_and_l01_window():
+    from logger import clvtrack as CT
+    g = {"id": "e", "season": 2026, "week": 10, "home_team": "H", "away_team": "V", "commence_time": "2026-11-15T18:00:00Z",
+         "home_score": 20}
+    h = [{"season": 2026, "week": 10, "home_team": "H", "away_team": "V", "computed_at": "2026-11-09T12:00:00Z",
+          "model_version": "v2-market", "fair_spread": 5.0, "fair_total": 47.0}]
+    s = [{"event_id": "e", "market": "spreads", "outcome": "H", "point": -3, "seen_at": "2026-11-09T10:00:00Z"},
+         {"event_id": "e", "market": "spreads", "outcome": "H", "point": -4, "seen_at": "2026-11-14T10:00:00Z"},
+         {"event_id": "e", "market": "totals", "outcome": "Over", "point": 45, "seen_at": "2026-11-09T10:00:00Z"},
+         {"event_id": "e", "market": "totals", "outcome": "Over", "point": 46.5, "seen_at": "2026-11-15T17:00:00Z"},
+         {"event_id": "e", "market": "totals", "outcome": "Over", "point": 40, "seen_at": "2026-11-15T19:00:00Z"}]   # in-play, ignored
+    rows = {r["market"]: r for r in CT.per_game(h, [g], s)}
+    assert rows["spreads"]["gap"] == 2.0 and rows["spreads"]["clv"] == 1.0     # model home by 5 vs MB -3; MB went to -4
+    assert rows["totals"]["gap"] == 2.0 and rows["totals"]["clv"] == 1.5      # model 47 vs MB 45; MB closed 46.5
+    assert CT.l01_status(list(rows.values()))[0]["n"] == 1
+    assert CT.per_game(h, [{**g, "home_score": None}], s) == []
