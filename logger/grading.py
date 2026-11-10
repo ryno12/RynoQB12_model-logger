@@ -16,6 +16,7 @@ from datetime import timedelta
 from statistics import median
 
 from . import config, scores
+from . import prices as P
 from .store import iso, parse_ts
 
 
@@ -75,7 +76,7 @@ def consensus_close(close, market, outcome):
         return None, None, None
     pts = [float(r["point"]) for r in rows]
     prices = [int(r["price"]) for r in rows if r.get("price") is not None]
-    return median(pts), (int(median(prices)) if prices else None), max(parse_ts(r["seen_at"]) for r in rows)
+    return median(pts), P.median_price(prices), max(parse_ts(r["seen_at"]) for r in rows)
 
 
 def clv(market, side, line, price, close_point, close_price):
@@ -89,7 +90,7 @@ def clv(market, side, line, price, close_point, close_price):
         pts = close_point - line
     cents = None
     if abs(pts) < 1e-9 and price is not None and close_price is not None:
-        cents = int(price) - int(close_price)
+        cents = P.cents(price) - P.cents(close_price)
     return round(pts, 2), cents
 
 

@@ -12,6 +12,7 @@ from statistics import median
 from zoneinfo import ZoneInfo
 
 from . import config
+from . import prices as P
 from .store import now_utc, parse_ts
 
 DENVER = ZoneInfo("America/Denver")
@@ -40,7 +41,7 @@ def _consensus(books: dict):
         return None, None, 0
     pts = [float(r["point"]) for r in rows]
     prices = [int(r["price"]) for r in rows if r.get("price") is not None]
-    return median(pts), (int(median(prices)) if prices else None), len(rows)
+    return median(pts), P.median_price(prices), len(rows)
 
 
 def find_gaps(quotes, games_by_id):
@@ -70,7 +71,7 @@ def find_gaps(quotes, games_by_id):
             side = outcome
             key_cross = False
 
-        cents = (mb_price - cons_price) if (mb_price is not None and cons_price is not None and abs(gap) < 1e-9) else 0
+        cents = (P.cents(mb_price) - P.cents(cons_price)) if (mb_price is not None and cons_price is not None and abs(gap) < 1e-9) else 0
         if gap >= config.ALERT_GAP_POINTS or key_cross or cents >= config.ALERT_GAP_CENTS:
             out.append({
                 "event_id": event_id, "market": market, "side": side,
