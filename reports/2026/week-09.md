@@ -1,6 +1,6 @@
 # Week 9 report (2026)
 
-Games Nov 05 to Nov 09, 15 of 15 final. Generated Tue Nov 10 1:29 PM MT.
+Games Nov 05 to Nov 09, 15 of 15 final. Generated Tue Nov 10 1:59 PM MT.
 
 ## Bets
 
@@ -28,28 +28,28 @@ Games Nov 05 to Nov 09, 15 of 15 final. Generated Tue Nov 10 1:29 PM MT.
 
 ## Model (fair lines from the model repo, unproven)
 
-- Week: 15 games, 15 graded. Spread picks vs close **11-4-0**, vs MyBookie close 9-5-1; totals vs close **8-7-0**, vs MyBookie 8-7-0. Fair spread off the close by 0.6 pts on average (bias -0.2), total by 1.9 (bias +1.6). Shrink 0.17 spreads / 0.34 totals.
+- Week: 15 games, 15 graded. Spread picks vs close **11-4-0**, vs MyBookie close 9-5-1; totals vs close **8-7-0**, vs MyBookie 8-7-0. Fair spread off the close by 0.7 pts on average (bias -0.2), total by 1.7 (bias -0.8). Shrink 0.17 spreads / 0.34 totals.
 - Season: 57 graded. Spreads vs close **31-26-0**, vs MyBookie 29-27-1; totals vs close **29-28-0**, vs MyBookie 30-27-0.
 
 | Game | Home line: fair / close / MB | Margin | vs close | vs MB | Total: fair / close / MB | Total | vs close | vs MB |
 |---|---|---|---|---|---|---|---|---|
-| Jacksonville Jaguars @ Baltimore Ravens | +9.25 / +9.25 / +9 | -23 | won | won | 42.26 / 39.75 / 40 | 43 | lost | lost |
-| Arizona Cardinals @ Seattle Seahawks | -7.98 / -8.5 / -9 | +14 | won | lost | 40.57 / 39.5 / 39.5 | 20 | won | won |
-| Cincinnati Bengals @ Atlanta Falcons | +5.84 / +3.25 / +3.5 | -17 | won | won | 50.48 / 52.5 / 52 | 51 | won | won |
-| Cleveland Browns @ New Orleans Saints | -4.9 / -4.5 / -4.5 | +1 | won | won | 46.61 / 43.5 / 43.5 | 45 | won | won |
-| Dallas Cowboys @ Indianapolis Colts | +4.71 / +4.5 / +4 | -4 | lost | push | 54 / 51.5 / 51 | 50 | lost | lost |
-| Denver Broncos @ Carolina Panthers | +2.79 / +3 / +3 | -5 | lost | lost | 48.68 / 44.5 / 45 | 47 | lost | lost |
-| Detroit Lions @ Miami Dolphins | +6.43 / +6.5 / +6.5 | -10 | won | won | 51.68 / 50.5 / 50 | 28 | won | won |
-| Green Bay Packers @ New England Patriots | -2.99 / -3 / -3 | -18 | lost | lost | 44.66 / 44.75 / 44.5 | 72 | lost | lost |
-| Houston Texans @ Los Angeles Chargers | +5.8 / +5.5 / +5 | -22 | won | won | 43.04 / 40.5 / 40.5 | 66 | won | won |
-| Los Angeles Rams @ Washington Commanders | +5.19 / +4.5 / +5 | -7 | won | lost | 50.92 / 48 / 48 | 33 | won | won |
-| Las Vegas Raiders @ San Francisco 49ers | -8.79 / -9 / -9 | +21 | won | won | 52.05 / 51.75 / 52 | 55 | lost | lost |
-| New York Giants @ Philadelphia Eagles | +3.92 / +3 / +3 | -8 | won | won | 37.47 / 37.5 / 37.5 | 30 | won | won |
-| New York Jets @ Kansas City Chiefs | -10.69 / -9.5 / -9.5 | +23 | won | won | 49.14 / 47.5 / 47.5 | 47 | won | won |
-| Tampa Bay Buccaneers @ Chicago Bears | -7.56 / -6.5 / -6 | +3 | lost | lost | 48.85 / 47.5 / 47.5 | 51 | lost | lost |
+| Jacksonville Jaguars @ Baltimore Ravens | +9.83 / +9.25 / +9 | -23 | won | won | 38.84 / 39.75 / 40 | 43 | lost | lost |
+| Arizona Cardinals @ Seattle Seahawks | -8.67 / -8.5 / -9 | +14 | won | lost | 35.6 / 39.5 / 39.5 | 20 | won | won |
+| Cincinnati Bengals @ Atlanta Falcons | +5.34 / +3.25 / +3.5 | -17 | won | won | 49.58 / 52.5 / 52 | 51 | won | won |
+| Cleveland Browns @ New Orleans Saints | -3.61 / -4.5 / -4.5 | +1 | won | won | 45.08 / 43.5 / 43.5 | 45 | won | won |
+| Dallas Cowboys @ Indianapolis Colts | +5.11 / +4.5 / +4 | -4 | lost | push | 52.63 / 51.5 / 51 | 50 | lost | lost |
+| Denver Broncos @ Carolina Panthers | +2.18 / +3 / +3 | -5 | lost | lost | 44.44 / 44.5 / 45 | 47 | lost | lost |
+| Detroit Lions @ Miami Dolphins | +7.18 / +6.5 / +6.5 | -10 | won | won | 48.41 / 50.5 / 50 | 28 | won | won |
+| Green Bay Packers @ New England Patriots | -3.67 / -3 / -3 | -18 | lost | lost | 42.65 / 44.75 / 44.5 | 72 | lost | lost |
+| Houston Texans @ Los Angeles Chargers | +6.64 / +5.5 / +5 | -22 | won | won | 41.73 / 40.5 / 40.5 | 66 | won | won |
+| Los Angeles Rams @ Washington Commanders | +4.94 / +4.5 / +5 | -7 | won | lost | 46.71 / 48 / 48 | 33 | won | won |
+| Las Vegas Raiders @ San Francisco 49ers | -10.69 / -9 / -9 | +21 | won | won | 50.48 / 51.75 / 52 | 55 | lost | lost |
+| New York Giants @ Philadelphia Eagles | +3.07 / +3 / +3 | -8 | won | won | 34.3 / 37.5 / 37.5 | 30 | won | won |
+| New York Jets @ Kansas City Chiefs | -10.25 / -9.5 / -9.5 | +23 | won | won | 46.73 / 47.5 / 47.5 | 47 | won | won |
+| Tampa Bay Buccaneers @ Chicago Bears | -6.85 / -6.5 / -6 | +3 | lost | lost | 47.4 / 47.5 / 47.5 | 51 | lost | lost |
 | Buffalo Bills @ Minnesota Vikings | +3.46 / +3.25 / +3 | -17 | won | won | 48.82 / 45.5 / 45.5 | 29 | lost | lost |
 
 ## Logger (last 7 days)
 
-- 1025 polls, 0 with a failure; 58 odds pulls (close 7, news 42, pre 7, scheduled 2); 137 credits used, **294 remaining**.
+- 1024 polls, 0 with a failure; 58 odds pulls (close 7, news 42, pre 7, scheduled 2); 137 credits used, **294 remaining**.
 - Week 9 games with a pre-kickoff pull: 15 of 15; with a close pull: 15 of 15.
