@@ -61,7 +61,7 @@ UPPER_ONLY = {"no", "was", "ten", "car", "min", "ne", "sea", "pit", "ind"}
 _ALIAS = sorted(((a, t) for t, al in TEAMS.items() for a in al), key=lambda x: -len(x[0]))
 _ALIAS_RE = {a: re.compile(rf"(?<![a-z0-9]){re.escape(a)}(?![a-z0-9])", re.I) for a, _ in _ALIAS}
 
-SYSTEM_TITLES = ("Line gap", "Logged", "Could not log", "RynoQB12", "Week ", "Model vs MyBookie", "Price check")
+SYSTEM_TITLES = ("Line gap", "Logged", "Could not log", "RynoQB12", "Week ", "Model vs MyBookie", "Model edge", "Price check")
 # Every push the logger sends carries one of these ntfy tags (ntfy.send defaults to "football"); a message Ryan types in
 # the app has none. Checked as well as the titles so a new kind of push cannot be read as a bet (Oct 19: the model
 # summary's "Leans Over" line was logged as a Dolphins @ Jets Over bet because its title was not in SYSTEM_TITLES).

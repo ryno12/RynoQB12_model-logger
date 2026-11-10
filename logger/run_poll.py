@@ -137,6 +137,14 @@ def main():
                 notes.append(m_note)
         except Exception as ex:
             notes.append(f"model push FAILED: {ex}")
+        try:
+            e_note = M.notify_edges(store, games, lambda t, m: ntfy.send(t, m, priority="high", tags="crystal_ball"),
+                                    config.TARGET_BOOK, config.CONSENSUS_BOOKS, config.MIN_CONSENSUS_BOOKS,
+                                    config.MODEL_EDGE_MIN, A.DENVER)
+            if e_note:
+                notes.append(e_note)
+        except Exception as ex:
+            notes.append(f"model edge push FAILED: {ex}")
         remaining_known = store.get_state("credits:remaining")
         remaining = int(remaining_known) if remaining_known not in (None, "") else None
         reason = None

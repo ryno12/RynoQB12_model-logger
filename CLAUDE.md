@@ -12,10 +12,12 @@ live in the private sibling repo `~/Repos/RynoQB12_model` (read its CLAUDE.md to
   `.env` (gitignored). Tests and dry runs use `DRY_RUN=1` with fixtures under `tests/fixtures/`.
 - Never scrape MyBookie, log into it, or place bets. MyBookie prices come only from The Odds API (`mybookieag`).
   MyBookie fraud rule 7 forbids bots on their site; we read a third-party feed instead.
-- Odds API free tier: 500 credits/month. A pull of spreads+totals for one region costs 2 credits. Reserves and cooldowns
+- Odds API free tier: 500 credits/month. A pull of spreads+totals for one region costs 2 credits. News pulls cut
+  2026-11-10 to 2 a day, 120 min apart (were 6 and 45: 42 of 58 pulls in Week 9, 294 credits left that day). Reserves and cooldowns
   in `logger/config.py` are deliberate; do not add pulls without checking `runs.credits_remaining`.
 - Alert thresholds and bankroll rules are frozen until the midseason checkpoint (after 100 logged suggestions).
-  Bankroll: $300, $5 flat, max 6 bets / $30 a week, 1 spread + 1 total per game, pause at $180 or negative CLV after 75 graded.
+  Bankroll: $300, $5 flat, 1 spread + 1 total per game, pause at $180 or negative CLV after 75 graded. No weekly cap
+  (Ryan dropped "max 6 bets / $30 a week" on 2026-11-10: "if I like a game I am going to bet it"; Week 9 had 7).
 - Git identity: commits and pushes are Ryan's personal GitHub `ryno12` (remote already set to
   `https://ryno12@github.com/...`). Never use a work account. The gh CLI holds both accounts; it defaults to the
   work one. Run `gh auth switch -u ryno12` before any gh write to this repo (dispatch, PR) and switch back after.
@@ -93,7 +95,16 @@ MyBookie), result and pick outcomes (`spread_vs_close`, `spread_vs_mb`, `total_v
 section. After each model run the poller pushes one "Model vs MyBookie" summary (biggest raw leans vs MyBookie's
 current numbers; wording is Ryan's "option 2" of 2026-10-14, see `model.disagreements`; trust shown once in the
 footer; `sync_state model:notified` keeps it to once per run). Every run is also kept
-in `model_lines_history` (sql/008) so Tuesday and Friday numbers can be compared. The model gets no say in bets until
+in `model_lines_history` (sql/008) so Tuesday and Friday numbers can be compared. Since 2026-11-10 live.py never republishes a game
+  after kickoff: the Monday run (current week, Monday night unplayed) had overwritten Sunday games with post-game,
+  close-anchored numbers, and 53 of 57 graded rows were those; sql/012 restored the last pre-kickoff version from
+  history and regraded (v2-market vs MyBookie close then 18-11 spreads, 14-16 totals over 30 games).
+  "Model edge" push (since 2026-11-10, what Ryan wants from the model: tell him when it disagrees with MyBookie enough
+  to matter): every poll, free, `model.notify_edges` re-anchors each row to the current consensus (`inputs.adj_*` +
+  consensus now, so a stale anchor after injury news cannot pose as an edge), takes the model chance at MyBookie's
+  number and price and pushes when it beats break-even by `MODEL_EDGE_MIN` (0.02); once per MyBookie number
+  (`sync_state model_edge:*`). With shrink ~0.17/0.34 it needs ~8.5 raw pts on a spread or ~4.4 on a total at -110,
+  so it is rare until the model earns trust; on the Nov 10 board nothing qualified (best: HOU@CLE Under 39.5, +1.6). The model gets no say in bets until
 it clears the hypothesis bar in the model repo.
 
 ## Scheduling (fixed 2026-10-12)

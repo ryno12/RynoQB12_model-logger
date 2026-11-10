@@ -49,8 +49,8 @@ MIN_CONSENSUS_BOOKS = _int("MIN_CONSENSUS_BOOKS", 2)
 # --- credit budget (free tier is 500/month, shared with the pick'em which uses ~180) -----
 CREDIT_RESERVE_NEWS = _int("CREDIT_RESERVE_NEWS", 60)     # below this remaining, skip news-triggered pulls
 CREDIT_RESERVE_SCHED = _int("CREDIT_RESERVE_SCHED", 20)   # below this, skip scheduled pulls too (closes still run)
-NEWS_COOLDOWN_MIN = _int("NEWS_COOLDOWN_MIN", 45)         # minimum minutes between news-triggered pulls
-NEWS_DAILY_CAP = _int("NEWS_DAILY_CAP", 6)                # max news-triggered pulls per UTC day
+NEWS_COOLDOWN_MIN = _int("NEWS_COOLDOWN_MIN", 120)         # minimum minutes between news-triggered pulls (45 until 2026-11-10)
+NEWS_DAILY_CAP = _int("NEWS_DAILY_CAP", 2)                # max news-triggered pulls per UTC day (6 until 2026-11-10: 42 of 58 pulls in Week 9)
 CLOSE_WINDOW_MIN = _int("CLOSE_WINDOW_MIN", 40)           # pull a close when a game starts within this many minutes
 # Pre-kickoff pull: once per game when kickoff is 90-130 minutes away (inactives are posted 90 minutes before).
 # Keyed to each game's own kickoff, so London 9:30am ET games, Thursday, Monday, Melbourne and any other odd slot
@@ -71,6 +71,10 @@ ALERT_GAP_POINTS = _float("ALERT_GAP_POINTS", 1.0)
 ALERT_GAP_CENTS = _int("ALERT_GAP_CENTS", 10)
 KEY_NUMBERS = (3.0, 7.0)
 ALERT_COOLDOWN_HOURS = _float("ALERT_COOLDOWN_HOURS", 3.0)   # same event+market+side not re-alerted within this window unless the gap grew
+# Model edge push (2026-11-10, Ryan: "what the model has compared to MyBookie, and if it is significant enough I want to
+# know"): the model's chance at MyBookie's current number and price, after shrink, beats the break-even chance by
+# this much (0.02 = 2 points of chance, the price check's GOOD bar). Free: uses stored quotes on every poll.
+MODEL_EDGE_MIN = _float("MODEL_EDGE_MIN", 0.02)
 
 # --- injury triggers ----------------------------------------------------------
 TRIGGER_STATUSES = {"Out", "Doubtful"}            # any position

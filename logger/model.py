@@ -163,3 +163,88 @@ def notify_if_new(store, games, now, send, target_book, top=8):
     send(f"Model vs MyBookie: {len(fresh)} games", msg)
     store.set_state("model:notified", latest)
     return f"model run {latest}: pushed {len(shown)} of {len(lines)} disagreements"
+
+
+# ---------------------------------------------------------------- model edge push (2026-11-10)
+def reanchor(row, cons_home_point, cons_total):
+    """The row with its fair lines moved to the market's current numbers. v2-market rows are (consensus at run time)
+    + (model adjustment); if the consensus has moved since (injury news), the model's view moves with it, so a stale
+    anchor cannot pose as an edge. Rows without an adjustment (v1) are returned unchanged."""
+    inp = row.get("inputs") or {}
+    if isinstance(inp, str):
+        import json
+        inp = json.loads(inp)
+    out = dict(row)
+    if cons_home_point is not None and _f(inp.get("adj_spread")) is not None:
+        out["fair_spread"] = -float(cons_home_point) + float(inp["adj_spread"])    # home margin
+    if cons_total is not None and _f(inp.get("adj_total")) is not None:
+        out["fair_total"] = float(cons_total) + float(inp["adj_total"])
+    return out
+
+
+def edges(model_rows, games, quotes, target_book, consensus_books, min_books=2, min_edge=0.02):
+    """Every side where the model's chance at MyBookie's current number and price beats break-even by min_edge."""
+    from statistics import median
+    from . import prices as P
+    ml = index(model_rows)
+    by = {}
+    for q in quotes:
+        by.setdefault(q["event_id"], {}).setdefault((q["market"], q["outcome"]), {})[q["bookmaker"]] = q
+    out = []
+    for g in games:
+        row, bk = lookup(ml, g), by.get(g["id"])
+        if not row or not bk:
+            continue
+        def cons(market, outcome):
+            pts = [_f(q.get("point")) for b, q in bk.get((market, outcome), {}).items() if b in consensus_books]
+            pts = [p for p in pts if p is not None]
+            return median(pts) if len(pts) >= min_books else None
+        r = reanchor(row, cons("spreads", g["home_team"]), cons("totals", "Over"))
+        for market, side in (("spreads", g["home_team"]), ("spreads", g["away_team"]), ("totals", "Over"), ("totals", "Under")):
+            mb = bk.get((market, side), {}).get(target_book)
+            if not mb or _f(mb.get("point")) is None or mb.get("price") is None:
+                continue
+            v = view(r, market, side, mb["point"], g["home_team"])
+            if not v or v["model_p"] is None:
+                continue
+            need = P.implied(mb["price"])
+            if v["model_p"] - need >= min_edge:
+                out.append({"game": g, "market": market, "side": side, "mb_point": _f(mb["point"]), "mb_price": int(mb["price"]),
+                            "cons": cons(market, side), "need": need, "edge": v["model_p"] - need, **v})
+    return sorted(out, key=lambda e: -e["edge"])
+
+
+def edge_message(e, mt):
+    g, side = e["game"], e["side"]
+    from .store import parse_ts
+    ct = parse_ts(g.get("commence_time"))
+    when = ct.astimezone(mt).strftime("%a %b %d %-I:%M %p MT") if ct else "?"
+    if e["market"] == "spreads":
+        num = f"{_nick(side)} {_spread(e['mb_point'], 0)}"
+        fair = f"model {_nick(side)} {_spread(e['model_point'])}" + (f", market {_spread(e['cons'])}" if e["cons"] is not None else "")
+    else:
+        num = f"{side} {e['mb_point']:g}"
+        fair = f"model total {e['model_point']:g}" + (f", market {e['cons']:g}" if e["cons"] is not None else "")
+    return (f"Model edge: {_nick(g['away_team'])} @ {_nick(g['home_team'])}",
+            f"{num} ({e['mb_price']:+d}) at MyBookie ({fair}).\n"
+            f"Model chance {e['model_p']:.1%}, break-even {e['need']:.1%}: +{e['edge'] * 100:.1f} pts.\n"
+            f"Kickoff {when}.\n"
+            f"Unproven: the model trusts {e['model_shrink']:.0%} of its own gap here. Graded in the Tuesday report.")
+
+
+def notify_edges(store, games, send, target_book, consensus_books, min_books, min_edge, mt):
+    """Push each qualifying side once per MyBookie number (a new number or price re-qualifies). Returns a note or None."""
+    rows = store.model_lines_open()
+    if not rows or not games:
+        return None
+    found = edges(rows, games, store.latest_quotes([g["id"] for g in games]), target_book, consensus_books, min_books, min_edge)
+    sent = 0
+    for e in found:
+        key = f"model_edge:{e['game']['id']}|{e['market']}|{e['side']}"
+        stamp = f"{e['mb_point']:g}|{e['mb_price']}"
+        if store.get_state(key) == stamp:
+            continue
+        send(*edge_message(e, mt))
+        store.set_state(key, stamp)
+        sent += 1
+    return f"model edges: {sent} pushed ({len(found)} at or over {min_edge:.0%})" if found else None
