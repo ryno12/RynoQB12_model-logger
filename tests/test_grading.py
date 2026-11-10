@@ -68,3 +68,16 @@ def test_clvtrack_signs_and_l01_window():
     assert rows["totals"]["gap"] == 2.0 and rows["totals"]["clv"] == 1.5      # model 47 vs MB 45; MB closed 46.5
     assert CT.l01_status(list(rows.values()))[0]["n"] == 1
     assert CT.per_game(h, [{**g, "home_score": None}], s) == []
+
+
+def test_w01_uses_late_forecast_and_mb_close():
+    from logger import clvtrack as CT
+    g = {"id": "e", "season": 2026, "week": 10, "home_team": "H", "away_team": "V", "commence_time": "2026-11-15T18:00:00Z",
+         "home_score": 20, "away_score": 17}
+    h = [{"season": 2026, "week": 10, "home_team": "H", "away_team": "V", "computed_at": t, "model_version": "v2-market",
+          "inputs": {"dome": 0, "wind_out": w}} for t, w in (("2026-11-09T12:00:00Z", 18.0), ("2026-11-13T22:30:00Z", 12.0))]
+    s = [{"event_id": "e", "market": "totals", "outcome": "Over", "point": 41.5, "seen_at": "2026-11-15T17:00:00Z"}]
+    rows = CT.w01_rows(h, [g], s)
+    assert [(r["wind"], r["close"], r["result"]) for r in rows] == [(12.0, 41.5, "won")]   # Friday forecast, 37 < 41.5
+    h[1]["inputs"] = {"dome": 0, "wind_out": 16.0}
+    assert CT.w01_rows(h, [g], s) == []

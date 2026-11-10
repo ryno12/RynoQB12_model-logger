@@ -290,16 +290,26 @@ def build(data, season, week, now):
         L.append("")
         L.append("| Market, gap | This week: games, CLV | Season: games, CLV (se) | Toward / away |")
         L.append("|---|---|---|---|")
-        for mk, lo in (("totals", 1), ("totals", 2), ("spreads", 1), ("spreads", 2)):
-            sel = [r for r in cr if r["market"] == mk and abs(r["gap"]) >= lo and r["season"] == season]
+        splits = [("totals", 1, None), ("totals", 2, None), ("spreads", 1, None), ("spreads", 2, None),
+                  ("totals", 1, "outdoor, forecast 10+ mph"), ("totals", 1, "dome or calm")]
+        for mk, lo, wx in splits:
+            sel = [r for r in cr if r["market"] == mk and abs(r["gap"]) >= lo and r["season"] == season
+                   and (wx is None or CT.windy(r) == (wx != "dome or calm"))]
             w_, s_ = CT.summary([r for r in sel if r["week"] == week]), CT.summary(sel)
             fm = lambda s: "0" if not s["n"] else f"{s['n']}, {_signed(s['mean'])}"
-            L.append(f"| {mk} {lo}+ pts | {fm(w_)} | {fm(s_)}{'' if s_['se'] is None else f' ({s_['se']:.2f})'} | "
+            L.append(f"| {mk} {lo}+ pts{'' if wx is None else f', {wx}'} | {fm(w_)} | {fm(s_)}{'' if s_['se'] is None else f' ({s_['se']:.2f})'} | "
                      f"{'n/a' if s_['toward'] is None else f'{s_['toward']:.0%} / {s_['away']:.0%}'} |")
         L.append("")
         L.append(f"- **L01** (pre-registered 2026-11-10: totals 1+ pts off MyBookie, Week 10 on; at 80 games adopt if CLV >= +0.30 "
                  f"and z >= 1.645, drop if <= 0): {l01['n']} games, CLV {_signed(l01['mean'])}"
                  f"{'' if l01['z'] is None else f', z {l01['z']:.2f}'}. **{l01_verdict}**.")
+        L.append("- The weather rows split the totals for reading only; the L01 rule does not use them.")
+        w01 = CT.w01_rows(data.get("model_lines_history") or [], data["games"], data.get("mb_snaps") or [])
+        wrec = Counter(r["result"] for r in w01)
+        wmean = (sum(r["total"] - r["close"] for r in w01) / len(w01)) if w01 else None
+        L.append(f"- **W01** (pre-registered 2026-11-10: outdoor games with a late forecast of 10-14.9 mph go under MyBookie's "
+                 f"close, Week 10 on; read at season end, adoption needs 100+ games): Unders {wrec['won']}-{wrec['lost']}-{wrec['push']}, "
+                 f"final minus close {_signed(wmean, 1)} over {len(w01)} games.")
     L.append("")
     L.append("## Logger (last 7 days)")
     L.append("")

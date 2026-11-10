@@ -1,6 +1,6 @@
 # Week 9 report (2026)
 
-Games Nov 05 to Nov 09, 15 of 15 final. Generated Tue Nov 10 2:41 PM MT.
+Games Nov 05 to Nov 09, 15 of 15 final. Generated Tue Nov 10 2:52 PM MT.
 
 ## Bets
 
@@ -59,10 +59,14 @@ Earliest pre-kickoff model number per game vs MyBookie's number at that moment; 
 | totals 2+ pts | 2, -1.25 | 4, -0.88 (0.66) | 25% / 75% |
 | spreads 1+ pts | 3, +0.50 | 10, +0.05 (0.47) | 50% / 30% |
 | spreads 2+ pts | 1, +0.50 | 3, +1.00 (0.76) | 67% / 0% |
+| totals 1+ pts, outdoor, forecast 10+ mph | 2, -0.75 | 5, -1.00 (0.42) | 0% / 60% |
+| totals 1+ pts, dome or calm | 9, +0.83 | 14, +1.11 (0.48) | 57% / 21% |
 
 - **L01** (pre-registered 2026-11-10: totals 1+ pts off MyBookie, Week 10 on; at 80 games adopt if CLV >= +0.30 and z >= 1.645, drop if <= 0): 0 games, CLV n/a. **watching: 0 of 80 games**.
+- The weather rows split the totals for reading only; the L01 rule does not use them.
+- **W01** (pre-registered 2026-11-10: outdoor games with a late forecast of 10-14.9 mph go under MyBookie's close, Week 10 on; read at season end, adoption needs 100+ games): Unders 0-0-0, final minus close n/a over 0 games.
 
 ## Logger (last 7 days)
 
-- 1019 polls, 0 with a failure; 58 odds pulls (close 7, news 42, pre 7, scheduled 2); 137 credits used, **294 remaining**.
+- 1018 polls, 0 with a failure; 58 odds pulls (close 7, news 42, pre 7, scheduled 2); 137 credits used, **294 remaining**.
 - Week 9 games with a pre-kickoff pull: 15 of 15; with a close pull: 15 of 15.

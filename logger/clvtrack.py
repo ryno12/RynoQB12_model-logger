@@ -61,8 +61,61 @@ def per_game(history, games, mb_snaps):
             p0, p1 = then[-1], close[-1]
             gap = float(fair) + p0 if market == "spreads" else float(fair) - p0
             move = (p0 - p1) if market == "spreads" else (p1 - p0)
+            inp = _inputs(h)
             out.append({"season": g.get("season"), "week": g.get("week"), "game": f"{g['away_team']} @ {g['home_team']}",
-                        "market": market, "gap": gap, "clv": math.copysign(1, gap) * move if gap else 0.0})
+                        "market": market, "gap": gap, "clv": math.copysign(1, gap) * move if gap else 0.0,
+                        "dome": inp.get("dome"), "wind": inp.get("wind_out")})
+    return out
+
+
+def _inputs(h):
+    inp = h.get("inputs") or {}
+    if isinstance(inp, str):
+        import json
+        inp = json.loads(inp)
+    return inp
+
+
+def windy(r):
+    """Outdoor game whose model forecast (at the version measured) was 10+ mph. A report split only, not part of L01."""
+    return r.get("dome") == 0 and (r.get("wind") or 0) >= 10
+
+
+# W01, pre-registered 2026-11-10 (model repo CLAUDE.md, "Live hypotheses"): outdoor games whose late forecast is
+# 10-14.9 mph go under MyBookie's closing total. Forecast = wind_out of the last pre-kickoff model version computed 12h
+# to 4 days before kickoff (the Friday run for Sunday games, the Tuesday run for Thursday games).
+W01 = dict(season=2026, from_week=10, lo=10.0, hi=15.0, min_h=12, max_h=96)
+
+
+def w01_rows(history, games, mb_snaps):
+    from datetime import timedelta
+    gk = {(g.get("season"), g.get("week"), g["home_team"], g["away_team"]): g for g in games}
+    close = {}
+    for s in mb_snaps:
+        if s.get("market") == "totals" and s.get("outcome") == "Over" and s.get("point") is not None:
+            close.setdefault(s["event_id"], []).append((parse_ts(s["seen_at"]), float(s["point"])))
+    best = {}
+    for h in history:
+        if str(h.get("model_version") or "").startswith("v1"):
+            continue
+        g = gk.get((h.get("season"), h.get("week"), h["home_team"], h["away_team"]))
+        if not g or g.get("season") != W01["season"] or (g.get("week") or 0) < W01["from_week"] or g.get("home_score") is None:
+            continue
+        t, ko = parse_ts(h["computed_at"]), parse_ts(g["commence_time"])
+        if not t or not ko or not (ko - timedelta(hours=W01["max_h"]) <= t <= ko - timedelta(hours=W01["min_h"])):
+            continue
+        if g["id"] not in best or t > best[g["id"]][0]:
+            best[g["id"]] = (t, h, g)
+    out = []
+    for t, h, g in best.values():
+        inp, ko = _inputs(h), parse_ts(g["commence_time"])
+        w = inp.get("wind_out")
+        cl = [p for ts, p in sorted(close.get(g["id"], [])) if ts < ko]
+        if inp.get("dome") != 0 or w is None or not (W01["lo"] <= w < W01["hi"]) or not cl:
+            continue
+        total = float(g["home_score"]) + float(g["away_score"])
+        out.append({"game": f"{g['away_team']} @ {g['home_team']}", "week": g.get("week"), "wind": w, "close": cl[-1],
+                    "total": total, "result": "won" if total < cl[-1] else "lost" if total > cl[-1] else "push"})
     return out
 
 
