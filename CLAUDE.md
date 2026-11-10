@@ -35,7 +35,10 @@ live in the private sibling repo `~/Repos/RynoQB12_model` (read its CLAUDE.md to
   log" replies because bet capture did not know the report title; both fixed). Local: `python -m logger.report --dump
   data/dumps/<date> --no-push --week 5`. Any new kind of push needs its title in `bets.is_system`, and must keep a
   tag from `bets.SYSTEM_TAGS` (since Oct 19 any push with one is skipped; the model push had been logged as 3 bets,
-  removed by sql/009).
+  removed by sql/009). American-price math (medians, cents differences) goes through `logger/prices.py`: plain
+  subtraction across even money made +100 vs -105 read as 205 cents and fired 101 of the first 370 alerts (fixed
+  2026-11-10; those alert rows are left as sent). Late bets (placed but never sent to ntfy) are added by a migration
+  graded from a dump, with a note saying so (sql/011), then the week report is rebuilt with `--force`.
   Dispatching dump.yml by hand (as ryno12) is the way to read any table from this Mac, which has no Supabase credentials.
 - `.github/workflows/migrate.yml`: `workflow_dispatch` with a `file` input under `sql/`; applies it with psql in one
   transaction and records `migration:<file>` in `sync_state`. Two ways in, either secret works: `SUPABASE_ACCESS_TOKEN`
@@ -138,8 +141,8 @@ machine (Ryan is willing, but only if needed).
    is non-zero for anything, the simulation layer for alternate-line pricing, then player-level features as hypotheses.
 6. ~~Step 3: $30 Odds API history month~~ done 2026-10-26 (key on the 20K plan; ~13.5k credits
    left after the download, so `runs.credits_remaining` reads high this month). Ryan cancelled the paid plan
-   2026-11-03; it should lapse to the free 500/month around Nov 26. Check the first dump after that: pulls succeeding
-   and credits near 500 means the same key carried over; failing pulls mean a new key for the `ODDS_API_KEY` secret. Results in the model repo's
+   2026-11-03. It dropped to the free tier right away and the same key kept working (Nov 10 dump: 0 failed polls,
+   294 credits left, 137 used that week, mostly news pulls). Results in the model repo's
    `reports/openers.md`: MyBookie's better numbers win late in the week (Sunday-morning spreads 0.5+ gap 56%) and
    lose at Monday's open; evidence for the midseason threshold review.
 7. ~~Cosmetic: repo description typo~~ fixed 2026-10-13 (both repos).

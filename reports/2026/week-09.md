@@ -1,13 +1,23 @@
 # Week 9 report (2026)
 
-Games Nov 05 to Nov 09, 15 of 15 final. Generated Tue Nov 10 12:00 PM MT.
+Games Nov 05 to Nov 09, 15 of 15 final. Generated Tue Nov 10 1:29 PM MT.
 
 ## Bets
 
-- Week: **0-0-0**, +$0.00 (+0.00u), CLV n/a pts vs consensus close, n/a vs MyBookie close (0 of 0 with a close).
-- Season: **11-9-1**, +$4.85 (+0.97u), CLV +0.19 pts, bankroll **$304.85** of $300.
+- Week: **5-2-0**, +$12.28 (+2.46u), CLV +0.04 pts vs consensus close, +0.07 vs MyBookie close (7 of 7 with a close).
+- Season: **16-11-1**, +$17.13 (+3.43u), CLV +0.15 pts, bankroll **$317.13** of $300.
 - Pause rules: not triggered (stop at $180 or negative CLV after 75 graded).
 - 8 bet message(s) still unmatched (needs_review): #22 "triggered"; #25 "Sea -2.5 (-110) $5"; #27 "Tampa Bay vs Car U45 (-110) $5"; #28 "Bucs U45 (-110) $5"; #29 "Car U45 (-110) $5"; #34 "Sea -3 (-120) $5"; #36 "Does the model have a lean on tonight's game?"; #38 "triggered"
+
+| # | Game | Bet | Price | Result | P/L | Close cons / MB | CLV pts | vs MB |
+|---|---|---|---|---|---|---|---|---|
+| 40 | Buffalo Bills @ Minnesota Vikings | Buffalo Bills -3 | -115 | won | +$4.35 | -3.25 / -3 | +0.25 | +0.00 |
+| 41 | Green Bay Packers @ New England Patriots | Green Bay Packers +3 | -105 | won | +$4.76 | +3 / +3 | +0.00 | +0.00 |
+| 42 | Green Bay Packers @ New England Patriots | Under 45.0 | -110 | lost | -$5.00 | 44.75 / 44.5 | +0.25 | +0.50 |
+| 43 | Los Angeles Rams @ Washington Commanders | Los Angeles Rams -5.5 | -110 | won | +$4.55 | -4.5 / -5 | -1.00 | -0.50 |
+| 44 | New York Jets @ Kansas City Chiefs | Kansas City Chiefs -9.5 | -123 | won | +$4.07 | -9.5 / -9.5 | +0.00 | +0.00 |
+| 45 | Tampa Bay Buccaneers @ Chicago Bears | Chicago Bears -6 | -110 | lost | -$5.00 | -6.5 / -6 | +0.50 | +0.00 |
+| 46 | Cincinnati Bengals @ Atlanta Falcons | Cincinnati Bengals -3 | -110 | won | +$4.55 | -3.25 / -3.5 | +0.25 | +0.50 |
 
 ## Alerts (MyBookie vs consensus gaps, scored as $5 flat bets at the alerted line)
 
@@ -41,5 +51,5 @@ Games Nov 05 to Nov 09, 15 of 15 final. Generated Tue Nov 10 12:00 PM MT.
 
 ## Logger (last 7 days)
 
-- 1023 polls, 0 with a failure; 58 odds pulls (close 7, news 42, pre 7, scheduled 2); 137 credits used, **294 remaining**.
+- 1025 polls, 0 with a failure; 58 odds pulls (close 7, news 42, pre 7, scheduled 2); 137 credits used, **294 remaining**.
 - Week 9 games with a pre-kickoff pull: 15 of 15; with a close pull: 15 of 15.
