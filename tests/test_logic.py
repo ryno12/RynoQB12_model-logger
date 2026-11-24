@@ -617,3 +617,14 @@ def test_bet_sent_just_before_kickoff_matches_when_read_after(tmp_path, monkeypa
     B.process(store, now, run_id=2)
     late = [r for r in store.tables["bets"] if r["ntfy_id"] == "m2"][0]
     assert late["event_id"] is None and late["status"] == "needs_review"
+
+
+def test_model_summary_shows_every_line_that_fits():
+    """Ryan 2026-11-24: the top-8 cut ended in '(+20 more)' he could not open. A full board (~28 lines) fits."""
+    from logger import model as M
+    line = "Commanders @ Giants: MB has Giants -2.5, model says Giants -1.4. Leans Commanders, 1.1 pts."
+    out = M.fit_lines([line] * 28, "footer")
+    assert out == [line] * 28
+    out = M.fit_lines([line] * 80, "footer")                       # far past ntfy's 4 KB: cut, and say how many
+    assert out[-1].startswith("(+") and len("\n".join(out + ["footer"]).encode()) <= M.NTFY_MAX_BYTES
+    assert int(out[-1][2:].split()[0]) + len(out) - 1 == 80

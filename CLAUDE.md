@@ -75,7 +75,7 @@ live in the private sibling repo `~/Repos/RynoQB12_model` (read its CLAUDE.md to
   PrizePicks are there only as player-prop DFS). Fee per contract: `PRICE_CHECK_FEE_CENTS` (0 until Ryan reads it off
   a slip). Uses stored quotes only, no credits; the reply says how old the market is.
 - Local dev: `DRY_RUN=1 ODDS_FIXTURE=tests/fixtures/odds_sample.json ESPN_FIXTURE=tests/fixtures/espn_sample.json
-  NTFY_TOPIC=t NTFY_FIXTURE=tests/fixtures/ntfy_sample.json python -m logger.run_poll`; tests: `DRY_RUN=1 pytest -q` (37 pass).
+  NTFY_TOPIC=t NTFY_FIXTURE=tests/fixtures/ntfy_sample.json python -m logger.run_poll`; tests: `DRY_RUN=1 pytest -q` (38 pass).
   The odds fixture's kickoffs are Oct 10-12 2026, so a dry run now reports "3 in-play events ignored" and pulls nothing;
   copy the fixture and shift `commence_time` into the future to exercise snapshots and alerts.
   No `python` on this Mac: use `uv run --python 3.12 --with pytest --with 'requests>=2.31' python -m pytest -q`.
@@ -92,7 +92,7 @@ predicted adjustment, so its numbers sit within a point or two of the market (se
 view of any side at any number (edge = shrink * raw, p = Phi(edge / sigma)); every alert ends with that line, labelled
 unproven, and `alerts.model_point/model_edge/model_p` are stored. Grading fills the row's close (consensus and
 MyBookie), result and pick outcomes (`spread_vs_close`, `spread_vs_mb`, `total_vs_*`); the weekly report has a Model
-section. After each model run the poller pushes one "Model vs MyBookie" summary (biggest raw leans vs MyBookie's
+section. After each model run the poller pushes one "Model vs MyBookie" summary (every game, biggest raw lean first, since 2026-11-24 when Ryan could not see past "(+20 more)"; a full board is ~2.2 KB of ntfy's 4 KB; leans vs MyBookie's
 current numbers; wording is Ryan's "option 2" of 2026-10-14, see `model.disagreements`; trust shown once in the
 footer; `sync_state model:notified` keeps it to once per run). Every run is also kept
 in `model_lines_history` (sql/008) so Tuesday and Friday numbers can be compared. Since 2026-11-10 live.py never republishes a game

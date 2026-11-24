@@ -141,7 +141,23 @@ def disagreements(model_rows, games, quotes, target_book):
     return sorted(out, key=lambda x: -x[0])
 
 
-def notify_if_new(store, games, now, send, target_book, top=8):
+NTFY_MAX_BYTES = 3900   # ntfy turns a message over 4096 bytes into a file attachment; keep the body inline
+
+
+def fit_lines(lines, footer, limit=NTFY_MAX_BYTES):
+    """As many lines as fit under `limit` bytes with the footer (every line normally fits: ~28 lines is ~2.5 KB).
+    Ryan 2026-11-24: the old top-8 cut ended in "(+20 more)" with no way to see the rest."""
+    shown, used = [], len(footer.encode()) + 1
+    for i, t in enumerate(lines):
+        more = f"(+{len(lines) - i - 1} more)" if i < len(lines) - 1 else ""
+        if used + len(t.encode()) + 1 + len(more.encode()) + 1 > limit:
+            return shown + [f"(+{len(lines) - i} more)"]
+        shown.append(t)
+        used += len(t.encode()) + 1
+    return shown
+
+
+def notify_if_new(store, games, now, send, target_book):
     """Push a summary once per model run. Returns a note or None. `send(title, msg)` is ntfy.send."""
     rows = store.model_lines_open()
     if not rows:
@@ -155,14 +171,14 @@ def notify_if_new(store, games, now, send, target_book, top=8):
     if not lines:
         store.set_state("model:notified", latest)
         return f"model run {latest}: no MyBookie quotes to compare yet"
-    shown = [t for _, t in lines[:top]]
-    msg = "\n".join(shown) + (f"\n(+{len(lines) - top} more)" if len(lines) > top else "")
     sh_s = max((_f(r.get("shrink_spread")) or 0.0) for r in fresh)
     sh_t = max((_f(r.get("shrink_total")) or 0.0) for r in fresh)
-    msg += f"\nUnproven. Trust so far: spreads {sh_s:.0%}, totals {sh_t:.0%} of the gap. Graded in the Tuesday report."
-    send(f"Model vs MyBookie: {len(fresh)} games", msg)
+    footer = f"Unproven. Trust so far: spreads {sh_s:.0%}, totals {sh_t:.0%} of the gap. Graded in the Tuesday report."
+    shown = fit_lines([t for _, t in lines], footer)
+    send(f"Model vs MyBookie: {len(fresh)} games", "\n".join(shown + [footer]))
     store.set_state("model:notified", latest)
-    return f"model run {latest}: pushed {len(shown)} of {len(lines)} disagreements"
+    n = sum(not s.startswith("(+") for s in shown)
+    return f"model run {latest}: pushed {n} of {len(lines)} disagreements"
 
 
 # ---------------------------------------------------------------- model edge push (2026-11-10)
