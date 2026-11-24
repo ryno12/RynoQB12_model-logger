@@ -40,7 +40,7 @@ live in the private sibling repo `~/Repos/RynoQB12_model` (read its CLAUDE.md to
   removed by sql/009). American-price math (medians, cents differences) goes through `logger/prices.py`: plain
   subtraction across even money made +100 vs -105 read as 205 cents and fired 101 of the first 370 alerts (fixed
   2026-11-10; those alert rows are left as sent). Late bets (placed but never sent to ntfy) are added by a migration
-  graded from a dump, with a note saying so (sql/011), then the week report is rebuilt with `--force`.
+  graded from a dump, with a note saying so (sql/011), then the week report is rebuilt with `--force`. Re-sent bets (Ryan sometimes sends one bet twice) are deleted once he confirms (sql/013). Bets match games by the message time, not the poll time, so one sent minutes before kickoff still logs (2026-11-24).
   Dispatching dump.yml by hand (as ryno12) is the way to read any table from this Mac, which has no Supabase credentials.
 - `.github/workflows/migrate.yml`: `workflow_dispatch` with a `file` input under `sql/`; applies it with psql in one
   transaction and records `migration:<file>` in `sync_state`. Two ways in, either secret works: `SUPABASE_ACCESS_TOKEN`
@@ -75,7 +75,7 @@ live in the private sibling repo `~/Repos/RynoQB12_model` (read its CLAUDE.md to
   PrizePicks are there only as player-prop DFS). Fee per contract: `PRICE_CHECK_FEE_CENTS` (0 until Ryan reads it off
   a slip). Uses stored quotes only, no credits; the reply says how old the market is.
 - Local dev: `DRY_RUN=1 ODDS_FIXTURE=tests/fixtures/odds_sample.json ESPN_FIXTURE=tests/fixtures/espn_sample.json
-  NTFY_TOPIC=t NTFY_FIXTURE=tests/fixtures/ntfy_sample.json python -m logger.run_poll`; tests: `DRY_RUN=1 pytest -q` (22 pass).
+  NTFY_TOPIC=t NTFY_FIXTURE=tests/fixtures/ntfy_sample.json python -m logger.run_poll`; tests: `DRY_RUN=1 pytest -q` (37 pass).
   The odds fixture's kickoffs are Oct 10-12 2026, so a dry run now reports "3 in-play events ignored" and pulls nothing;
   copy the fixture and shift `commence_time` into the future to exercise snapshots and alerts.
   No `python` on this Mac: use `uv run --python 3.12 --with pytest --with 'requests>=2.31' python -m pytest -q`.

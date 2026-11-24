@@ -98,8 +98,8 @@ class SupabaseStore:
         return {int(r["year"]): date.fromisoformat(r["week1_tuesday"]) for r in rows}
 
     # -- domain
-    def upcoming_games(self):
-        return self.select("games", {"select": "*", "commence_time": f"gte.{iso(now_utc())}", "order": "commence_time"})
+    def upcoming_games(self, since=None):
+        return self.select("games", {"select": "*", "commence_time": f"gte.{iso(since or now_utc())}", "order": "commence_time"})
 
     def latest_quotes(self, event_ids):
         if not event_ids:
@@ -207,8 +207,8 @@ class LocalStore:
     def seasons(self):
         return dict(config.SEASONS_FALLBACK)
 
-    def upcoming_games(self):
-        n = iso(now_utc())
+    def upcoming_games(self, since=None):
+        n = iso(since or now_utc())
         return sorted([g for g in self.tables["games"] if g["commence_time"] >= n], key=lambda g: g["commence_time"])
 
     def latest_quotes(self, event_ids):

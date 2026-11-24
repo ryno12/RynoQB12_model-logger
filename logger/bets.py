@@ -168,16 +168,18 @@ def parse(text: str) -> dict:
     return out
 
 
-def match_game(store, parsed: dict, now):
-    """The next game involving the first named team (and the second, if given)."""
+def match_game(store, parsed: dict, now, at=None):
+    """The next game involving the first named team (and the second, if given), kicking off after `at` (when the
+    message was sent; default now). A bet sent minutes before kickoff is read by a poll after it (2026-11-12: the
+    Giants/Commanders over sent 4 min early sat in needs_review because the game was no longer upcoming)."""
     teams = parsed.get("teams") or []
     if not teams:
         return None
-    games = store.upcoming_games()
+    at = min(at, now) if at else now
+    games = store.upcoming_games(since=at)
     cands = [g for g in games if teams[0] in (g["home_team"], g["away_team"])]
     if len(teams) > 1:   # two teams named: both must be in the game, never fall back to "team one's next game"
         cands = [g for g in cands if teams[1] in (g["home_team"], g["away_team"])]
-    cands = [g for g in cands if (parse_ts(g["commence_time"]) or now) > now - timedelta(hours=4)]
     cands.sort(key=lambda g: g["commence_time"])
     return cands[0] if cands else None
 
@@ -297,10 +299,11 @@ def process(store, now, run_id) -> int:
                 seen.append(mid); seen_set.add(mid)
                 continue
             parsed = parse(text)
-            game = match_game(store, parsed, now)
+            sent = _received_at(m)
+            game = match_game(store, parsed, now, at=parse_ts(sent))
             alert = match_alert(store, parsed, game, now)
             row = _row(parsed, game, alert)
-            row.update({"ntfy_id": mid, "received_at": _received_at(m), "raw_text": text, "run_id": run_id})
+            row.update({"ntfy_id": mid, "received_at": sent, "raw_text": text, "run_id": run_id})
             store.insert("bets", [row])
             seen.append(mid); seen_set.add(mid)
             logged += 1

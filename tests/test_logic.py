@@ -592,3 +592,28 @@ def test_price_check_parse_and_math(tmp_path, monkeypatch):
     title, msg = P.check(store, "check Chiefs -3.5 52", now)
     assert msg.startswith("BAD price") and "MyBookie is the better bet." in msg
     assert B.is_system({"title": "Price check: Kansas City Chiefs -3.5", "tags": ["mag"]})
+
+
+def test_bet_sent_just_before_kickoff_matches_when_read_after(tmp_path, monkeypatch):
+    """2026-11-12: 'Giants/Commanders over 40.5' sent 6:11 PM MT for a 6:15 kickoff, read by a poll after kickoff."""
+    from logger.store import LocalStore
+    msg = [{"id": "m1", "time": int(datetime(2026, 11, 13, 1, 11, 27, tzinfo=timezone.utc).timestamp()),
+            "event": "message", "message": "Giants/Commanders over 40.5 (-110) $5"}]
+    fx = tmp_path / "ntfy.json"
+    fx.write_text(json.dumps(msg))
+    monkeypatch.setattr(config, "NTFY_TOPIC", "t")
+    monkeypatch.setattr(config, "NTFY_FIXTURE", str(fx))
+    store = LocalStore(tmp_path / "s")
+    now = datetime(2026, 11, 13, 1, 21, tzinfo=timezone.utc)          # the poll after kickoff
+    monkeypatch.setattr("logger.store.now_utc", lambda: now)
+    store.upsert("games", [{"id": "g", "home_team": "New York Giants", "away_team": "Washington Commanders",
+                            "commence_time": "2026-11-13T01:15:00Z"}])
+    assert B.process(store, now, run_id=1) == 1
+    b = store.tables["bets"][0]
+    assert b["event_id"] == "g" and b["status"] == "open" and b["side"] == "Over" and b["line"] == 40.5
+    # the same message sent AFTER kickoff must not be logged against that game
+    msg[0].update(id="m2", time=int(datetime(2026, 11, 13, 1, 20, tzinfo=timezone.utc).timestamp()))
+    fx.write_text(json.dumps(msg))
+    B.process(store, now, run_id=2)
+    late = [r for r in store.tables["bets"] if r["ntfy_id"] == "m2"][0]
+    assert late["event_id"] is None and late["status"] == "needs_review"
