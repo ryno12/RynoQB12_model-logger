@@ -1,20 +1,19 @@
 # Week 11 report (2026)
 
-Games Nov 19 to Nov 23, 13 of 13 final. Generated Tue Nov 24 9:57 AM MT.
+Games Nov 19 to Nov 23, 13 of 13 final. Generated Tue Nov 24 10:12 AM MT.
 
 ## Bets
 
-- Week: **3-3-0**, -$1.35 (-0.27u), CLV -0.08 pts vs consensus close, -0.08 vs MyBookie close (6 of 6 with a close).
-- Season: **24-18-1**, +$18.79 (+3.76u), CLV +0.08 pts, bankroll **$318.79** of $300.
+- Week: **3-2-0**, +$3.65 (+0.73u), CLV -0.10 pts vs consensus close, -0.10 vs MyBookie close (5 of 5 with a close).
+- Season: **25-16-1**, +$33.34 (+6.67u), CLV +0.10 pts, bankroll **$333.34** of $300.
 - Pause rules: not triggered (stop at $180 or negative CLV after 75 graded).
-- 12 bet message(s) still unmatched (needs_review): #22 "triggered"; #25 "Sea -2.5 (-110) $5"; #27 "Tampa Bay vs Car U45 (-110) $5"; #28 "Bucs U45 (-110) $5"; #29 "Car U45 (-110) $5"; #34 "Sea -3 (-120) $5"; #36 "Does the model have a lean on tonight's game?"; #38 "triggered"; #50 "Panthers ML (-104) $5"; #55 "Panthers (-104) $5"; #57 "Giants/Commanders over 40.5 (-110) $5"; #58 "Giants/Commanders over 40.5 (-110) $5"
+- 8 bet message(s) still unmatched (needs_review): #22 "triggered"; #25 "Sea -2.5 (-110) $5"; #27 "Tampa Bay vs Car U45 (-110) $5"; #28 "Bucs U45 (-110) $5"; #29 "Car U45 (-110) $5"; #34 "Sea -3 (-120) $5"; #36 "Does the model have a lean on tonight's game?"; #38 "triggered"
 
 | # | Game | Bet | Price | Result | P/L | Close cons / MB | CLV pts | vs MB |
 |---|---|---|---|---|---|---|---|---|
 | 60 | Cincinnati Bengals @ Washington Commanders | Cincinnati Bengals -6.5 | -110 | lost | -$5.00 | -6.5 / -6.5 | +0.00 | +0.00 |
 | 61 | Indianapolis Colts @ Houston Texans | Houston Texans -12.5 | -110 | won | +$4.55 | -12.5 / -12.5 | +0.00 | +0.00 |
 | 62 | Minnesota Vikings @ San Francisco 49ers | San Francisco 49ers -3 | -110 | won | +$4.55 | -4 / -4 | +1.00 | +1.00 |
-| 63 | Cincinnati Bengals @ Washington Commanders | Cincinnati Bengals -6.5 | -110 | lost | -$5.00 | -6.5 / -6.5 | +0.00 | +0.00 |
 | 64 | Tampa Bay Buccaneers @ Detroit Lions | Detroit Lions -5 | -110 | won | +$4.55 | -3.5 / -3.5 | -1.50 | -1.50 |
 | 65 | New Orleans Saints @ Chicago Bears | Chicago Bears -11.5 | -110 | lost | -$5.00 | -11.5 / -11.5 | +0.00 | +0.00 |
 
