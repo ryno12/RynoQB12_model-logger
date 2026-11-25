@@ -75,7 +75,7 @@ live in the private sibling repo `~/Repos/RynoQB12_model` (read its CLAUDE.md to
   PrizePicks are there only as player-prop DFS). Fee per contract: `PRICE_CHECK_FEE_CENTS` (0 until Ryan reads it off
   a slip). Uses stored quotes only, no credits; the reply says how old the market is.
 - Local dev: `DRY_RUN=1 ODDS_FIXTURE=tests/fixtures/odds_sample.json ESPN_FIXTURE=tests/fixtures/espn_sample.json
-  NTFY_TOPIC=t NTFY_FIXTURE=tests/fixtures/ntfy_sample.json python -m logger.run_poll`; tests: `DRY_RUN=1 pytest -q` (38 pass).
+  NTFY_TOPIC=t NTFY_FIXTURE=tests/fixtures/ntfy_sample.json python -m logger.run_poll`; tests: `DRY_RUN=1 pytest -q` (39 pass).
   The odds fixture's kickoffs are Oct 10-12 2026, so a dry run now reports "3 in-play events ignored" and pulls nothing;
   copy the fixture and shift `commence_time` into the future to exercise snapshots and alerts.
   No `python` on this Mac: use `uv run --python 3.12 --with pytest --with 'requests>=2.31' python -m pytest -q`.
@@ -105,6 +105,10 @@ in `model_lines_history` (sql/008) so Tuesday and Friday numbers can be compared
   number and price and pushes when it beats break-even by `MODEL_EDGE_MIN` (0.02); once per MyBookie number
   (`sync_state model_edge:*`). With shrink ~0.17/0.34 it needs ~8.5 raw pts on a spread or ~4.4 on a total at -110,
   so it is rare until the model earns trust; on the Nov 10 board nothing qualified (best: HOU@CLE Under 39.5, +1.6).
+  Since 2026-11-25 the model is `v2.1-market`: spreads add F04 returning starters (adopted for spreads only; the Tuesday
+  report notes the switch), and every row carries `inputs.scratch_spread/scratch_total`, the model's own number from
+  scratch (no market input; Ryan asked for it). Pushes show it as "(from scratch ...)"; it is display only, since from
+  scratch only ~7-11% of its gap to the close has been real (vs 22-69% anchored).
   Trust is earned through CLV, not win-loss: the Tuesday report's "Model CLV" section (`logger/clvtrack.py`) tracks
   whether MyBookie moves toward the model by kickoff, and pre-registered L01 (model repo CLAUDE.md) decides at 80
   Week-10-on totals games whether the Model edge push starts firing on totals 1+ pts off MyBookie. The model gets no say in bets until

@@ -550,7 +550,7 @@ def test_model_vs_mybookie_push_once_per_run(tmp_path):
     assert lines[1] == "Seahawks @ Broncos: MB has Seahawks -2.5, model says Seahawks PK. Leans Broncos, 2.5 pts."
     assert lines[2] == "Jets @ Patriots: MB total 43.5, model says 45.8. Leans Over, 2.3 pts."
     assert lines[3] == "Seahawks @ Broncos: MB total 40.5, model says 42.0. Leans Over, 1.5 pts."
-    assert lines[-1] == "Unproven. Trust so far: spreads 0%, totals 7% of the gap. Graded in the Tuesday report."
+    assert lines[-1].startswith("Unproven. Trust so far: spreads 0%, totals 7% of the gap.") and "from scratch" in lines[-1]
     # same run again: nothing; a newer run: pushed again
     assert M.notify_if_new(store, games, None, lambda t, m: sent.append((t, m)), "mybookieag") is None and len(sent) == 1
     store.upsert("model_lines", [{"game_key": "2026-06-SEA-DEN", "computed_at": "2026-10-16T22:30:00Z", "fair_spread": -1.0}])
@@ -628,3 +628,17 @@ def test_model_summary_shows_every_line_that_fits():
     out = M.fit_lines([line] * 80, "footer")                       # far past ntfy's 4 KB: cut, and say how many
     assert out[-1].startswith("(+") and len("\n".join(out + ["footer"]).encode()) <= M.NTFY_MAX_BYTES
     assert int(out[-1][2:].split()[0]) + len(out) - 1 == 80
+
+
+def test_model_lines_show_the_from_scratch_number():
+    """Ryan 2026-11-25: show what the model thinks from scratch next to the market-anchored number."""
+    from logger import model as M
+    row = {"week": 12, "home_team": "Los Angeles Rams", "away_team": "Green Bay Packers", "fair_spread": 0.83, "fair_total": 44.88,
+           "shrink_spread": 0.29, "sigma_spread": 13.0, "shrink_total": 0.34, "sigma_total": 13.0,
+           "inputs": {"scratch_spread": 4.51, "scratch_total": 48.21}}
+    g = {"id": "e", "week": 12, "home_team": "Los Angeles Rams", "away_team": "Green Bay Packers"}
+    q = [{"event_id": "e", "bookmaker": "mb", "market": "spreads", "outcome": "Los Angeles Rams", "point": -2.5},
+         {"event_id": "e", "bookmaker": "mb", "market": "totals", "outcome": "Over", "point": 44.0}]
+    lines = [t for _, t in M.disagreements([row], [g], q, "mb")]
+    assert any("MB has Rams -2.5, model says Rams -0.8 (from scratch Rams -4.5). Leans Packers, 1.7 pts." in t for t in lines)
+    assert any("model says 44.9 (from scratch 48.2)" in t for t in lines)

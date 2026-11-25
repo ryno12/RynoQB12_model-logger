@@ -304,6 +304,8 @@ def build(data, season, week, now):
                  f"and z >= 1.645, drop if <= 0): {l01['n']} games, CLV {_signed(l01['mean'])}"
                  f"{'' if l01['z'] is None else f', z {l01['z']:.2f}'}. **{l01_verdict}**.")
         L.append("- The weather rows split the totals for reading only; the L01 rule does not use them.")
+        L.append("- Spreads switched to v2.1 (returning starters, F04) on 2026-11-25 (Week 12, from GB @ LAR): spread rows "
+                 "before that are v2. Totals and L01 are unchanged.")
         w01 = CT.w01_rows(data.get("model_lines_history") or [], data["games"], data.get("mb_snaps") or [])
         wrec = Counter(r["result"] for r in w01)
         wmean = (sum(r["total"] - r["close"] for r in w01) / len(w01)) if w01 else None

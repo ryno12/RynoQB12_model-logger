@@ -24,6 +24,14 @@ def phi(x):
     return 0.5 * (1.0 + math.erf(x / math.sqrt(2.0)))
 
 
+def _inputs(row):
+    inp = (row or {}).get("inputs") or {}
+    if isinstance(inp, str):
+        import json
+        inp = json.loads(inp)
+    return inp
+
+
 def index(rows):
     return {(int(r["week"]), r["home_team"], r["away_team"]): r for r in rows if r.get("week") is not None}
 
@@ -129,14 +137,18 @@ def disagreements(model_rows, games, quotes, target_book):
                     team, mb_pt, fair = away, -mb_pt, -fair
                 else:
                     team = home
-                out.append((lean, f"{head}: MB has {_nick(team)} {_spread(mb_pt, 0)}, model says {_nick(team)} {_spread(fair)}. "
+                sc = _f(_inputs(row).get("scratch_spread"))
+                scr = "" if sc is None else f" (from scratch {_nick(team)} {_spread(-sc if team == home else sc)})"
+                out.append((lean, f"{head}: MB has {_nick(team)} {_spread(mb_pt, 0)}, model says {_nick(team)} {_spread(fair)}{scr}. "
                                   f"Leans {_nick(side)}, {lean:.1f} pts."))
         q = mb.get(("totals", "Over"))
         if q and q.get("point") is not None:
             v = view(row, "totals", "Over", q["point"], home)
             if v:
                 side, lean = ("Over", v["model_raw"]) if v["model_raw"] >= 0 else ("Under", -v["model_raw"])
-                out.append((lean, f"{head}: MB total {_f(q['point']):g}, model says {_f(row['fair_total']):.1f}. "
+                sc = _f(_inputs(row).get("scratch_total"))
+                scr = "" if sc is None else f" (from scratch {sc:.1f})"
+                out.append((lean, f"{head}: MB total {_f(q['point']):g}, model says {_f(row['fair_total']):.1f}{scr}. "
                                   f"Leans {side}, {lean:.1f} pts."))
     return sorted(out, key=lambda x: -x[0])
 
@@ -173,7 +185,8 @@ def notify_if_new(store, games, now, send, target_book):
         return f"model run {latest}: no MyBookie quotes to compare yet"
     sh_s = max((_f(r.get("shrink_spread")) or 0.0) for r in fresh)
     sh_t = max((_f(r.get("shrink_total")) or 0.0) for r in fresh)
-    footer = f"Unproven. Trust so far: spreads {sh_s:.0%}, totals {sh_t:.0%} of the gap. Graded in the Tuesday report."
+    footer = (f"Unproven. Trust so far: spreads {sh_s:.0%}, totals {sh_t:.0%} of the gap. 'Model says' = market line + the "
+              f"model's adjustment; 'from scratch' = the model alone, shown only (far less accurate). Graded in the Tuesday report.")
     shown = fit_lines([t for _, t in lines], footer)
     send(f"Model vs MyBookie: {len(fresh)} games", "\n".join(shown + [footer]))
     store.set_state("model:notified", latest)
@@ -225,7 +238,11 @@ def edges(model_rows, games, quotes, target_book, consensus_books, min_books=2, 
                 continue
             need = P.implied(mb["price"])
             if v["model_p"] - need >= min_edge:
+                sc = _f(_inputs(row).get("scratch_spread" if market == "spreads" else "scratch_total"))
+                if sc is not None and market == "spreads":
+                    sc = -sc if side == g["home_team"] else sc          # that side's line from scratch
                 out.append({"game": g, "market": market, "side": side, "mb_point": _f(mb["point"]), "mb_price": int(mb["price"]),
+                            "scratch": sc,
                             "cons": cons(market, side), "need": need, "edge": v["model_p"] - need, **v})
     return sorted(out, key=lambda e: -e["edge"])
 
@@ -237,10 +254,12 @@ def edge_message(e, mt):
     when = ct.astimezone(mt).strftime("%a %b %d %-I:%M %p MT") if ct else "?"
     if e["market"] == "spreads":
         num = f"{_nick(side)} {_spread(e['mb_point'], 0)}"
-        fair = f"model {_nick(side)} {_spread(e['model_point'])}" + (f", market {_spread(e['cons'])}" if e["cons"] is not None else "")
+        fair = f"model {_nick(side)} {_spread(e['model_point'])}" + (f", market {_spread(e['cons'])}" if e["cons"] is not None else "") \
+            + (f", from scratch {_spread(e['scratch'])}" if e.get("scratch") is not None else "")
     else:
         num = f"{side} {e['mb_point']:g}"
-        fair = f"model total {e['model_point']:g}" + (f", market {e['cons']:g}" if e["cons"] is not None else "")
+        fair = f"model total {e['model_point']:g}" + (f", market {e['cons']:g}" if e["cons"] is not None else "") \
+            + (f", from scratch {e['scratch']:.1f}" if e.get("scratch") is not None else "")
     return (f"Model edge: {_nick(g['away_team'])} @ {_nick(g['home_team'])}",
             f"{num} ({e['mb_price']:+d}) at MyBookie ({fair}).\n"
             f"Model chance {e['model_p']:.1%}, break-even {e['need']:.1%}: +{e['edge'] * 100:.1f} pts.\n"
