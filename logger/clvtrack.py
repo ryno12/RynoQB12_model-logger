@@ -22,8 +22,9 @@ from .store import parse_ts
 L01 = dict(market="totals", gap=1.0, season=2026, from_week=10, n=80, mean=0.30, z=1.645)
 
 
-def per_game(history, games, mb_snaps):
-    """[{season, week, game, market, gap, clv}] one row per game and market."""
+def per_game(history, games, mb_snaps, version=None):
+    """[{season, week, game, market, gap, clv}] one row per game and market. `version`: only model versions starting
+    with it (e.g. "v2.1": the returning-starters spreads, live 2026-11-25), measured from that version's first number."""
     gk = {(g.get("season"), g.get("week"), g["home_team"], g["away_team"]): g for g in games}
     snaps = {}
     for s in mb_snaps:
@@ -34,7 +35,8 @@ def per_game(history, games, mb_snaps):
         v.sort(key=lambda x: x[0])
     versions = {}
     for h in history:
-        if str(h.get("model_version") or "").startswith("v1"):
+        mv = str(h.get("model_version") or "")
+        if mv.startswith("v1") or (version and not mv.startswith(version)):
             continue
         g = gk.get((h.get("season"), h.get("week"), h["home_team"], h["away_team"]))
         if not g or g.get("home_score") is None:   # finished games only: an unplayed game has no close yet

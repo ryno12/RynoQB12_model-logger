@@ -299,6 +299,12 @@ def build(data, season, week, now):
             fm = lambda s: "0" if not s["n"] else f"{s['n']}, {_signed(s['mean'])}"
             L.append(f"| {mk} {lo}+ pts{'' if wx is None else f', {wx}'} | {fm(w_)} | {fm(s_)}{'' if s_['se'] is None else f' ({s_['se']:.2f})'} | "
                      f"{'n/a' if s_['toward'] is None else f'{s_['toward']:.0%} / {s_['away']:.0%}'} |")
+        v21 = CT.summary([r for r in CT.per_game(data.get("model_lines_history") or [], data["games"], data.get("mb_snaps") or [],
+                                                 version="v2.1") if r["market"] == "spreads" and abs(r["gap"]) >= 1])
+        n21 = "0" if not v21["n"] else f"{v21['n']}, {_signed(v21['mean'])}"
+        se21 = "" if v21["se"] is None else f" ({v21['se']:.2f})"
+        ta21 = "n/a" if v21["toward"] is None else f"{v21['toward']:.0%} / {v21['away']:.0%}"
+        L.append(f"| spreads 1+ pts, v2.1 only (returning starters, from 2026-11-25) | | {n21}{se21} | {ta21} |")
         L.append("")
         L.append(f"- **L01** (pre-registered 2026-11-10: totals 1+ pts off MyBookie, Week 10 on; at 80 games adopt if CLV >= +0.30 "
                  f"and z >= 1.645, drop if <= 0): {l01['n']} games, CLV {_signed(l01['mean'])}"

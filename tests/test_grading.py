@@ -81,3 +81,18 @@ def test_w01_uses_late_forecast_and_mb_close():
     assert [(r["wind"], r["close"], r["result"]) for r in rows] == [(12.0, 41.5, "won")]   # Friday forecast, 37 < 41.5
     h[1]["inputs"] = {"dome": 0, "wind_out": 16.0}
     assert CT.w01_rows(h, [g], s) == []
+
+
+def test_clvtrack_version_filter():
+    from logger import clvtrack as CT
+    games = [{"id": "e", "season": 2026, "week": 12, "home_team": "H", "away_team": "A", "home_score": 20, "away_score": 17,
+              "commence_time": "2026-11-29T18:00:00Z"}]
+    snaps = [{"event_id": "e", "market": "spreads", "outcome": "H", "point": -3.0, "seen_at": "2026-11-23T12:00:00Z"},
+             {"event_id": "e", "market": "spreads", "outcome": "H", "point": -4.0, "seen_at": "2026-11-29T17:00:00Z"}]
+    hist = [{"season": 2026, "week": 12, "home_team": "H", "away_team": "A", "model_version": "v2-market",
+             "computed_at": "2026-11-24T12:00:00Z", "fair_spread": 1.0, "fair_total": None},
+            {"season": 2026, "week": 12, "home_team": "H", "away_team": "A", "model_version": "v2.1-market",
+             "computed_at": "2026-11-26T12:00:00Z", "fair_spread": 5.0, "fair_total": None}]
+    assert CT.per_game(hist, games, snaps)[0]["gap"] == -2.0                       # earliest version overall (v2)
+    r = CT.per_game(hist, games, snaps, version="v2.1")[0]
+    assert r["gap"] == 2.0 and r["clv"] == 1.0                                       # v2.1 at MB -3, close -4: toward
